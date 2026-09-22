@@ -3,6 +3,7 @@ import swaggerUi from 'swagger-ui-express';
 
 import { db } from './database/connection.js';
 import authRoutes from './routes/auth.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 import { swaggerSpec } from './config/swagger.js';
 
 const app = express();
@@ -18,6 +19,9 @@ app.get('/swagger.json', (_req, res) => {
 
 // Auth routes
 app.use('/api/auth', authRoutes);
+
+// Protected admin routes
+app.use('/api/admin', adminRoutes);
 
 app.get('/health', async (_req, res) => {
     try {

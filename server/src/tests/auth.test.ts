@@ -32,6 +32,24 @@ describe('POST /api/auth/login', () => {
     });
 });
 
+describe('GET /api/admin/me', () => {
+    it('should reject request without a token', async () => {
+        const response = await request(app).get('/api/admin/me');
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe('Unauthorized');
+    });
+
+    it('should reject an invalid token', async () => {
+        const response = await request(app)
+            .get('/api/admin/me')
+            .set('Authorization', 'Bearer invalid-token');
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe('Unauthorized');
+    });
+});
+
 afterAll(async () => {
     await db.destroy();
 });
