@@ -1,14 +1,20 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-import { registerSchema } from '../schemas/auth.schema.js';
+import jwt from 'jsonwebtoken';
+
+import {
+    loginSchema,
+    registerSchema,
+} from '../schemas/auth.schema.js';
+
 import {
     createAdmin,
+    findAdminByEmail,
     findFirstAdmin,
 } from '../models/admin.model.js';
 
 export async function register(req: Request, res: Response) {
     try {
-        // Validate request data
         const result = registerSchema.safeParse(req.body);
 
         if (!result.success) {
@@ -19,7 +25,6 @@ export async function register(req: Request, res: Response) {
 
         const { email, password } = result.data;
 
-        // Check if an admin already exists
         const existingAdmin = await findFirstAdmin();
 
         if (existingAdmin) {
@@ -28,15 +33,68 @@ export async function register(req: Request, res: Response) {
             });
         }
 
-        // Hash password
         const passwordHash = await bcrypt.hash(password, 12);
 
-        // Create first admin
         const admin = await createAdmin(email, passwordHash);
 
         return res.status(201).json({
             message: 'Admin registered successfully',
             admin,
+        });
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            message: 'Internal server error',
+        });
+    }
+}
+
+export async function login(req: Request, res: Response) {
+    try {
+        const result = loginSchema.safeParse(req.body);
+
+        if (!result.success) {
+            return res.status(401).json({
+                message: 'Invalid credentials',
+            });
+        }
+
+        const { email, password } = result.data;
+
+        const admin = await findAdminByEmail(email);
+
+        if (!admin) {
+            return res.status(401).json({
+                message: 'Invalid credentials',
+            });
+        }
+
+        const passwordMatches = await bcrypt.compare(
+            password,
+            admin.password_hash,
+        );
+
+        if (!passwordMatches) {
+            return res.status(401).json({
+                message: 'Invalid credentials',
+            });
+        }
+
+        const token = jwt.sign(
+            {
+                adminId: admin.id,
+                email: admin.email,
+            },
+            process.env.JWT_SECRET as string,
+            {
+                expiresIn: '24h',
+            },
+        );
+
+        return res.status(200).json({
+            message: 'Login successful',
+            token,
         });
     } catch (error) {
         console.error(error);
