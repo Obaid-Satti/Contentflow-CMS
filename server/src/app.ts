@@ -13,6 +13,10 @@ app.use(express.json());
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+app.get('/swagger.json', (_req, res) => {
+    res.json(swaggerSpec);
+});
+
 // Auth routes
 app.use('/api/auth', authRoutes);
 

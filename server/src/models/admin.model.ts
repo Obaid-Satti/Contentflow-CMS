@@ -19,7 +19,11 @@ export async function createAdmin(
 }
 
 export async function findAdminByEmail(email: string) {
+<<<<<<< HEAD
     return db('admins')
         .where({ email })
         .first();
+=======
+    return db('admins').where({ email }).first();
+>>>>>>> origin/main
 }
