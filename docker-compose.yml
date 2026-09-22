@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: contentflow-postgres
+    restart: unless-stopped
+    env_file:
+      - path: ./server/.env
+        required: false
+      - path: ./.env
+        required: false
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-${DB_USER:-contentflow}}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-${DB_PASSWORD:-contentflow_password}}
+      POSTGRES_DB: ${POSTGRES_DB:-${DB_NAME:-contentflow}}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - contentflow-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  contentflow-postgres-data:
