@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register } from '../controllers/auth.controller.js';
+import { login, register } from '../controllers/auth.controller.js';
 
 const router = Router();
 
@@ -40,5 +40,41 @@ const router = Router();
  *         description: Internal server error
  */
 router.post('/register', register);
+
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Login admin
+ *     description: Authenticates the admin and returns a JWT valid for 24 hours.
+ *     tags:
+ *       - Authentication
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: admin@contentflow.com
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 example: password123
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/login', login);
 
 export default router;

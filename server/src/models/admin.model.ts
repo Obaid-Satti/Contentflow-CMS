@@ -17,3 +17,7 @@ export async function createAdmin(
 
     return admin;
 }
+
+export async function findAdminByEmail(email: string) {
+    return db('admins').where({ email }).first();
+}
