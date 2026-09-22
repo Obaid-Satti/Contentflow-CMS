@@ -104,3 +104,18 @@ export async function login(req: Request, res: Response) {
         });
     }
 }
+export async function authStatus(req: Request, res: Response) {
+    try {
+        const existingAdmin = await findFirstAdmin();
+
+        return res.status(200).json({
+            registrationAvailable: !existingAdmin,
+        });
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            message: 'Internal server error',
+        });
+    }
+}

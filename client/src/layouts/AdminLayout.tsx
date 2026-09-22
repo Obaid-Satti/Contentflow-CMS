@@ -5,6 +5,7 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 import { Button } from '../components/ui/button';
 import { cn } from '@/lib/utils';
 import { navigationItems } from '@/pages/page-data';
+import { useAuth } from '@/context/useAuth';
 
 const SIDEBAR_GRADIENT =
   'linear-gradient(160deg, #1e1b4b 0%, #312e81 60%, #3730a3 100%)';
@@ -116,6 +117,7 @@ function SidebarContent() {
 
 export function AdminLayout() {
   const location = useLocation();
+  const { logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const currentPage = navigationItems.find(
@@ -209,7 +211,8 @@ export function AdminLayout() {
               variant="outline"
               size="sm"
               type="button"
-              title="Logout will be enabled with authentication"
+              onClick={logout}
+              className="text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors"
             >
               <LogOut className="h-3.5 w-3.5 sm:mr-1.5" />
 
