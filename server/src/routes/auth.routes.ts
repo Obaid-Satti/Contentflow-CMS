@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { login, register } from '../controllers/auth.controller.js';
+
+import {
+    authStatus,
+    login,
+    register,
+} from '../controllers/auth.controller.js';
 
 const router = Router();
 
@@ -76,5 +81,29 @@ router.post('/register', register);
  *         description: Internal server error
  */
 router.post('/login', login);
+
+/**
+ * @swagger
+ * /api/auth/status:
+ *   get:
+ *     summary: Check registration status
+ *     description: Checks whether first-admin registration is still available.
+ *     tags:
+ *       - Authentication
+ *     responses:
+ *       200:
+ *         description: Registration status returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 registrationAvailable:
+ *                   type: boolean
+ *                   example: false
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/status', authStatus);
 
 export default router;
