@@ -5,6 +5,7 @@ import { navigationItems } from '@/pages/page-data';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 
+import { ContentTypesPage } from '@/pages/content-types/ContentTypesPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 
@@ -38,8 +39,17 @@ function App() {
               }
             />
 
+            <Route
+              path="/content-types"
+              element={<ContentTypesPage />}
+            />
+
             {navigationItems
-              .filter((page) => page.path !== '/content-manager')
+              .filter(
+                (page) =>
+                  page.path !== '/content-manager' &&
+                  page.path !== '/content-types',
+              )
               .map((page) => (
                 <Route
                   key={page.path}
