@@ -25,6 +25,15 @@ const swaggerOptions = {
                 description: 'Local Development Server',
             },
         ],
+        components: {
+            securitySchemes: {
+                bearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
+                },
+            },
+        },
     },
     apis: [routesPath, './src/routes/*.ts', './dist/routes/*.js'],
 };
