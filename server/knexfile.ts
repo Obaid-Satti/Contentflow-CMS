@@ -1,19 +1,51 @@
-import dotenv from 'dotenv';
 import type { Knex } from 'knex';
+import dotenv from 'dotenv';
+import process from 'node:process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const config: Knex.Config = {
-  client: 'pg',
-  connection: {
-    host: process.env.DB_HOST || '127.0.0.1',
-    port: Number(process.env.DB_PORT) || 5432,
-    user: process.env.DB_USER || 'contentflow',
-    password: process.env.DB_PASSWORD || 'contentflow_password',
-    database: process.env.DB_NAME || 'contentflow',
+// Load .env from project root
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+const config: { [key: string]: Knex.Config } = {
+  development: {
+    client: 'pg',
+
+    connection: {
+      host: process.env.DB_HOST!,
+      port: Number(process.env.DB_PORT!),
+      user: process.env.DB_USER!,
+      password: process.env.DB_PASSWORD!,
+      database: process.env.DB_NAME!,
+    },
+
+    migrations: {
+      directory: './src/database/migrations',
+      extension: 'ts',
+    },
+
+    seeds: {
+      directory: './src/database/seeds',
+      extension: 'ts',
+    },
   },
-  migrations: {
-    directory: './src/database/migrations',
+
+  production: {
+    client: 'pg',
+
+    connection: process.env.DATABASE_URL!,
+
+    migrations: {
+      directory: './src/database/migrations',
+      extension: 'ts',
+    },
+
+    seeds: {
+      directory: './src/database/seeds',
+      extension: 'ts',
+    },
   },
 };
 
