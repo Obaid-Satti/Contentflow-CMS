@@ -83,8 +83,8 @@ describe('POST /api/auth/login', () => {
         const response = await request(app)
             .post('/api/auth/login')
             .send({
-                email: 'obaidsatti17@gmail.com',
-                password: '12345678',
+                email: 'obaidsatt@gmail.com',
+                password: '1234567',
             });
 
         expect(response.status).toBe(401);
