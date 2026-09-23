@@ -1,4 +1,11 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import swaggerJSDoc from 'swagger-jsdoc';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const routesPath = path.resolve(__dirname, '../routes/*.{ts,js}');
 
 const swaggerOptions = {
     definition: {
@@ -10,11 +17,16 @@ const swaggerOptions = {
         },
         servers: [
             {
+                url: '/',
+                description: 'Current environment',
+            },
+            {
                 url: 'http://localhost:5000',
+                description: 'Local Development Server',
             },
         ],
     },
-    apis: ['./src/routes/*.ts'],
+    apis: [routesPath, './src/routes/*.ts', './dist/routes/*.js'],
 };
 
 export const swaggerSpec = swaggerJSDoc(swaggerOptions);
