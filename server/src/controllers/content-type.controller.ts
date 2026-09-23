@@ -8,12 +8,26 @@ import {
     deleteContentType,
 } from '../models/content-type.model.js';
 
+import {
+    createContentTypeSchema,
+    updateContentTypeSchema,
+} from '../schemas/content-type.schema.js';
+
 export async function createContentTypeController(
     req: Request,
     res: Response,
 ) {
     try {
-        const { name, apiId, fields } = req.body;
+        const result = createContentTypeSchema.safeParse(req.body);
+
+        if (!result.success) {
+            return res.status(400).json({
+                message: 'Validation failed',
+                errors: result.error.flatten(),
+            });
+        }
+
+        const { name, apiId, fields } = result.data;
 
         const contentType = await createContentType(
             name,
@@ -23,11 +37,11 @@ export async function createContentTypeController(
 
         return res.status(201).json(contentType);
     } catch (error) {
-        console.error("CREATE CONTENT TYPE ERROR:", error);
+        console.error('CREATE CONTENT TYPE ERROR:', error);
 
         return res.status(500).json({
-            message: "Failed to create content type",
-            error: error instanceof Error ? error.message : error
+            message: 'Failed to create content type',
+            error: error instanceof Error ? error.message : error,
         });
     }
 }
@@ -80,7 +94,17 @@ export async function updateContentTypeController(
 ) {
     try {
         const id = Number(req.params.id);
-        const { name, apiId, fields } = req.body;
+
+        const result = updateContentTypeSchema.safeParse(req.body);
+
+        if (!result.success) {
+            return res.status(400).json({
+                message: 'Validation failed',
+                errors: result.error.flatten(),
+            });
+        }
+
+        const { name, apiId, fields } = result.data;
 
         const contentType = await updateContentType(
             id,
