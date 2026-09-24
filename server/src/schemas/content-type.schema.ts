@@ -100,4 +100,19 @@ export const createContentTypeSchema = z.object({
     }),
 });
 
-export const updateContentTypeSchema = createContentTypeSchema;
+export const updateContentTypeSchema = createContentTypeSchema.extend({
+    fieldChange: z.object({
+        fromName: z.string().trim().min(1),
+        toName: z.string().trim().min(1),
+        fromType: fieldTypeSchema,
+        toType: fieldTypeSchema,
+        uniqueChange: z.boolean().optional(),
+        confirmed: z.boolean().optional(),
+        deleteDuplicatesConfirmed: z.boolean().optional(),
+        defaultValue: z.unknown().optional(),
+    }).refine((change) =>
+        change.fromName !== change.toName || change.fromType !== change.toType || change.uniqueChange === true,
+    {
+        message: 'A field change must rename the field, change its type, or change its unique setting',
+    }).optional(),
+});
