@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Database,
   Plus,
@@ -21,6 +22,7 @@ import FieldModal from './FieldModal.tsx';
 
 import {
   deleteContentType,
+  fetchEntries,
   fetchContentTypes,
   updateContentType,
 } from '@/services/content-type.service';
@@ -49,6 +51,22 @@ export function ContentTypesPage() {
     useState<ContentType | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const entryCountQuery = useQuery({
+    queryKey: ['content-type-entry-count', contentTypeToDelete?.id],
+    queryFn: async () => {
+      if (!contentTypeToDelete) return 0;
+      const result = await fetchEntries(contentTypeToDelete.id, {
+        page: 1,
+        pageSize: 1,
+        sortBy: 'updated_at',
+        sortOrder: 'desc',
+      });
+      return result.pagination.total;
+    },
+    enabled: Boolean(contentTypeToDelete),
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
 
   // Field modal state
   const [isFieldModalOpen, setIsFieldModalOpen] =
@@ -90,7 +108,7 @@ export function ContentTypesPage() {
   };
 
   const confirmDeleteContentType = async () => {
-    if (!contentTypeToDelete) return;
+    if (!contentTypeToDelete || !entryCountQuery.isSuccess || entryCountQuery.isFetching) return;
 
     setIsDeleting(true);
     setDeleteError(null);
@@ -711,8 +729,19 @@ export function ContentTypesPage() {
                 Delete {contentTypeToDelete.name}?
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                This will permanently delete this content type and its{' '}
-                <strong>0 content entries</strong>. This action cannot be undone.
+                This will permanently delete this content type.
+                {entryCountQuery.isPending || entryCountQuery.isFetching ? (
+                  <span> Loading the number of associated entries…</span>
+                ) : entryCountQuery.isError ? (
+                  <span role="alert" className="font-medium text-rose-700">
+                    {' '}Could not load the entry count.{' '}
+                    <button type="button" className="underline" onClick={() => void entryCountQuery.refetch()}>
+                      Try again
+                    </button>
+                  </span>
+                ) : (
+                  <span> It will also delete <strong>{entryCountQuery.data ?? 0} content {entryCountQuery.data === 1 ? 'entry' : 'entries'}</strong>.</span>
+                )}{' '}This action cannot be undone.
               </p>
             </div>
 
@@ -735,7 +764,7 @@ export function ContentTypesPage() {
               </Button>
               <Button
                 type="button"
-                disabled={isDeleting}
+                disabled={isDeleting || entryCountQuery.isPending || entryCountQuery.isFetching || entryCountQuery.isError}
                 className="bg-rose-600 hover:bg-rose-700"
                 onClick={confirmDeleteContentType}
               >

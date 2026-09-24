@@ -7,6 +7,7 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -83,6 +84,40 @@ function displayValue(value: unknown): string {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+}
+
+interface DeleteEntryDialogProps {
+  entry: ContentEntry;
+  contentTypeName: string;
+  error: string | null;
+  isDeleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+function DeleteEntryDialog({
+  entry,
+  contentTypeName,
+  error,
+  isDeleting,
+  onCancel,
+  onConfirm,
+}: DeleteEntryDialogProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div role="alertdialog" aria-modal="true" aria-labelledby="delete-entry-title" className="w-full max-w-md rounded-xl bg-white shadow-xl">
+        <div className="border-b px-6 py-5">
+          <h2 id="delete-entry-title" className="text-lg font-semibold text-slate-900">Delete this entry?</h2>
+          <p className="mt-2 text-sm text-slate-600">This permanently removes entry #{entry.id} from {contentTypeName}.</p>
+        </div>
+        {error && <p role="alert" className="mx-6 mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
+        <div className="mt-5 flex justify-end gap-3 border-t bg-slate-50 px-6 py-4">
+          <Button type="button" variant="outline" disabled={isDeleting} onClick={onCancel}>Cancel</Button>
+          <Button type="button" disabled={isDeleting} className="bg-rose-600 hover:bg-rose-700" onClick={onConfirm}>{isDeleting ? 'Deleting…' : 'Delete Entry'}</Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ContentManagerPage() {
@@ -388,19 +423,14 @@ export function ContentManagerPage() {
         </form>
 
         {entryToDelete && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div role="alertdialog" aria-modal="true" aria-labelledby="delete-entry-title" className="w-full max-w-md rounded-xl bg-white shadow-xl">
-              <div className="border-b px-6 py-5">
-                <h2 id="delete-entry-title" className="text-lg font-semibold text-slate-900">Delete this entry?</h2>
-                <p className="mt-2 text-sm text-slate-600">This permanently removes entry #{entryToDelete.id} from {selectedType.name}.</p>
-              </div>
-              {deleteError && <p role="alert" className="mx-6 mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{deleteError}</p>}
-              <div className="flex justify-end gap-3 border-t bg-slate-50 px-6 py-4 mt-5">
-                <Button type="button" variant="outline" disabled={isDeleting} onClick={() => setEntryToDelete(null)}>Cancel</Button>
-                <Button type="button" disabled={isDeleting} className="bg-rose-600 hover:bg-rose-700" onClick={confirmDelete}>{isDeleting ? 'Deleting…' : 'Delete Entry'}</Button>
-              </div>
-            </div>
-          </div>
+          <DeleteEntryDialog
+            entry={entryToDelete}
+            contentTypeName={selectedType.name}
+            error={deleteError}
+            isDeleting={isDeleting}
+            onCancel={() => setEntryToDelete(null)}
+            onConfirm={() => void confirmDelete()}
+          />
         )}
       </section>
     );
@@ -450,13 +480,14 @@ export function ContentManagerPage() {
                     Updated{sortBy === 'updated_at' ? sortOrder === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />}
                   </button>
                 </th>
+                <th className="px-4 py-3 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {entriesQuery.isPending || entriesQuery.isFetching ? (
-                <tr><td colSpan={displayFields.length + 1} className="px-4 py-12 text-center text-slate-500">Loading entries…</td></tr>
+                <tr><td colSpan={displayFields.length + 2} className="px-4 py-12 text-center text-slate-500">Loading entries…</td></tr>
               ) : (entriesQuery.data?.entries.length ?? 0) === 0 ? (
-                <tr><td colSpan={displayFields.length + 1} className="px-4 py-12 text-center text-slate-500">{debouncedSearch ? 'No matching entries.' : 'No entries yet. Create the first one.'}</td></tr>
+                <tr><td colSpan={displayFields.length + 2} className="px-4 py-12 text-center text-slate-500">{debouncedSearch ? 'No matching entries.' : 'No entries yet. Create the first one.'}</td></tr>
               ) : entriesQuery.data?.entries.map((item) => (
                 <tr key={item.id} className="hover:bg-indigo-50/30">
                   {displayFields.map((field) => (
@@ -465,7 +496,17 @@ export function ContentManagerPage() {
                   <td className="whitespace-nowrap px-4 py-3.5 text-slate-500">
                     <button type="button" className="hover:text-indigo-600" onClick={() => navigate(`/content-manager/${selectedType.id}/entries/${item.id}`)}>{new Date(item.updated_at).toLocaleString()}</button>
                   </td>
-                </tr>
+                  <td className="whitespace-nowrap px-4 py-3.5">
+                    <div className="flex items-center gap-1">
+                      <Button type="button" size="sm" variant="ghost" onClick={() => navigate(`/content-manager/${selectedType.id}/entries/${item.id}`)} aria-label={`Edit entry ${item.id}`}>
+                        <Pencil className="mr-1 h-3.5 w-3.5" />Edit
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700" onClick={() => { setDeleteError(null); setEntryToDelete(item); }} aria-label={`Delete entry ${item.id}`}>
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />Delete
+                      </Button>
+                    </div>
+                  </td>
+              </tr>
               ))}
             </tbody>
           </table>
@@ -479,6 +520,17 @@ export function ContentManagerPage() {
           </div>
         </CardContent>
       </Card>
+
+      {entryToDelete && (
+        <DeleteEntryDialog
+          entry={entryToDelete}
+          contentTypeName={selectedType.name}
+          error={deleteError}
+          isDeleting={isDeleting}
+          onCancel={() => setEntryToDelete(null)}
+          onConfirm={() => void confirmDelete()}
+        />
+      )}
 
       <p className="text-xs text-slate-400">Showing up to four fields from the content type definition. Search checks text fields.</p>
     </section>
