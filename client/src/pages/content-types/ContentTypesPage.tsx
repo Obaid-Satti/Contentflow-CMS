@@ -20,6 +20,7 @@ import ContentTypeModal from './ContentTypeModal.tsx';
 import FieldModal from './FieldModal.tsx';
 
 import {
+  deleteContentType,
   fetchContentTypes,
   updateContentType,
 } from '@/services/content-type.service';
@@ -43,6 +44,11 @@ export function ContentTypesPage() {
 
   const [selectedContentType, setSelectedContentType] =
     useState<ContentType | null>(null);
+
+  const [contentTypeToDelete, setContentTypeToDelete] =
+    useState<ContentType | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Field modal state
   const [isFieldModalOpen, setIsFieldModalOpen] =
@@ -76,6 +82,35 @@ export function ContentTypesPage() {
     setSelectedContentType(contentType);
     setEditingField(null);
     setIsFieldModalOpen(true);
+  };
+
+  const openDeleteConfirmation = (contentType: ContentType) => {
+    setContentTypeToDelete(contentType);
+    setDeleteError(null);
+  };
+
+  const confirmDeleteContentType = async () => {
+    if (!contentTypeToDelete) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteContentType(contentTypeToDelete.id);
+      setContentTypes((current) =>
+        current.filter((item) => item.id !== contentTypeToDelete.id),
+      );
+      setContentTypeToDelete(null);
+    } catch (err: unknown) {
+      const responseMessage =
+        typeof err === 'object' && err !== null && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      setDeleteError(
+        responseMessage ?? 'Failed to delete content type. Please try again.',
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const openEditFieldModal = (
@@ -607,13 +642,9 @@ export function ContentTypesPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            title="Delete Type (T-CTB-06)"
+                            title="Delete Content Type"
                             className="h-8 px-2 text-slate-400 hover:text-rose-600"
-                            onClick={() => {
-                              alert(
-                                `Delete confirmation for "${type.name}" will be implemented in task T-CTB-06.`,
-                              );
-                            }}
+                            onClick={() => openDeleteConfirmation(type)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -651,6 +682,57 @@ export function ContentTypesPage() {
         onClose={closeModal}
         onSuccess={refetch}
       />
+
+      {contentTypeToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-content-type-title"
+            className="w-full max-w-md rounded-xl bg-white shadow-xl"
+          >
+            <div className="border-b px-6 py-5">
+              <h2
+                id="delete-content-type-title"
+                className="text-lg font-semibold text-slate-900"
+              >
+                Delete {contentTypeToDelete.name}?
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                This will permanently delete this content type and its{' '}
+                <strong>0 content entries</strong>. This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="px-6 py-4">
+              {deleteError && (
+                <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {deleteError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t bg-slate-50 px-6 py-4">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isDeleting}
+                onClick={() => setContentTypeToDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={isDeleting}
+                className="bg-rose-600 hover:bg-rose-700"
+                onClick={confirmDeleteContentType}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Content Type'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add / Edit Field Modal */}
       <FieldModal

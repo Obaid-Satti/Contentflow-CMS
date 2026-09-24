@@ -63,3 +63,9 @@ export async function updateContentType(
 
   return response.data;
 }
+
+export async function deleteContentType(id: number): Promise<void> {
+  await axios.delete(`${API_BASE_URL}/content-types/${id}`, {
+    headers: authHeaders(),
+  });
+}
