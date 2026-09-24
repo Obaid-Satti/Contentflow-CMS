@@ -29,10 +29,19 @@ router.use(authMiddleware);
  *           example: title
  *         type:
  *           type: string
- *           example: string
+ *           enum: [short_text, long_text, number, boolean, date, email, enumeration, media]
+ *           example: short_text
  *         required:
  *           type: boolean
  *           example: true
+ *         unique:
+ *           type: boolean
+ *           description: Supported for short_text and email fields
+ *         options:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Required for enumeration fields
  *     ContentType:
  *       type: object
  *       properties:
