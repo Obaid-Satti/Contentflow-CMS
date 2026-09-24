@@ -77,6 +77,13 @@ export async function listEntriesController(req: Request, res: Response) {
         const fields = getFieldDefinitions(contentType);
         const page = Number(req.query.page ?? 1);
         const pageSize = Number(req.query.pageSize ?? 10);
+        if (req.query.sortBy !== undefined && typeof req.query.sortBy !== 'string') {
+            return res.status(400).json({ message: 'sortBy must be a single field name' });
+        }
+        if (req.query.sortOrder !== undefined &&
+            req.query.sortOrder !== 'asc' && req.query.sortOrder !== 'desc') {
+            return res.status(400).json({ message: 'sortOrder must be asc or desc' });
+        }
         const sortBy = typeof req.query.sortBy === 'string'
             ? req.query.sortBy
             : 'updated_at';
@@ -91,6 +98,10 @@ export async function listEntriesController(req: Request, res: Response) {
         if (!Number.isInteger(pageSize) || ![10, 25].includes(pageSize)) {
             return res.status(400).json({ message: 'Page size must be 10 or 25' });
         }
+        if (sortBy !== 'created_at' && sortBy !== 'updated_at' &&
+            !fields.some((field) => field.name === sortBy)) {
+            return res.status(400).json({ message: 'sortBy must be a content field or timestamp' });
+        }
 
         const result = await getEntries(contentTypeId, {
             page,
@@ -101,7 +112,10 @@ export async function listEntriesController(req: Request, res: Response) {
             searchableFields: fields
                 .filter((field) => ['short_text', 'long_text', 'email'].includes(field.type))
                 .map((field) => field.name),
-            sortableFields: fields.map((field) => field.name),
+            sortableFields: fields.map((field) => ({
+                name: field.name,
+                type: field.type,
+            })),
         });
 
         return res.json(result);

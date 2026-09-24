@@ -1,16 +1,40 @@
 
-import { LogOut, Menu, X } from 'lucide-react';
+import { Database, LogOut, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { Button } from '../components/ui/button';
 import { cn } from '@/lib/utils';
 import { navigationItems } from '@/pages/page-data';
 import { useAuth } from '@/context/useAuth';
+import { fetchContentTypes } from '@/services/content-type.service';
+import type { ContentType } from '@/types/content-type';
 
 const SIDEBAR_GRADIENT =
   'linear-gradient(160deg, #1e1b4b 0%, #312e81 60%, #3730a3 100%)';
 
 function SidebarContent() {
+  const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadContentTypes = () => {
+      fetchContentTypes()
+        .then((types) => {
+          if (!cancelled) setContentTypes(types);
+        })
+        .catch(() => {
+          if (!cancelled) setContentTypes([]);
+        });
+    };
+
+    loadContentTypes();
+    window.addEventListener('content-types-changed', loadContentTypes);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('content-types-changed', loadContentTypes);
+    };
+  }, []);
+
   return (
     <>
       {/* Logo */}
@@ -102,6 +126,31 @@ function SidebarContent() {
             );
           })}
         </div>
+
+        <div className="mt-6 space-y-0.5">
+          <p
+            className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest"
+            style={{ color: 'rgba(165,180,252,0.5)' }}
+          >
+            Content Types
+          </p>
+          {contentTypes.map((type) => (
+            <NavLink
+              key={type.id}
+              to={`/content-manager/${type.id}`}
+              className={({ isActive }) => cn(
+                'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                isActive ? 'bg-indigo-500/25 text-white' : 'text-indigo-200 hover:bg-white/10 hover:text-white',
+              )}
+            >
+              <Database className="h-3.5 w-3.5 shrink-0 opacity-75" aria-hidden="true" />
+              <span className="truncate">{type.name}</span>
+            </NavLink>
+          ))}
+          {contentTypes.length === 0 && (
+            <p className="px-3 py-2 text-xs text-indigo-300/60">No content types yet</p>
+          )}
+        </div>
       </nav>
 
       {/* Footer */}
@@ -122,7 +171,9 @@ export function AdminLayout() {
 
   const currentPage = navigationItems.find(
     (item) => item.path === location.pathname,
-  );
+  ) ?? (location.pathname.startsWith('/content-manager/')
+    ? navigationItems.find((item) => item.path === '/content-manager')
+    : undefined);
 
   // Close sidebar when Escape is pressed
   useEffect(() => {
