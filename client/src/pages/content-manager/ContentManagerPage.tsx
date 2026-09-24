@@ -26,7 +26,7 @@ import {
   fetchEntry,
   updateEntry,
 } from '@/services/content-type.service';
-import type { ContentEntry } from '@/types/content-entry';
+import type { ContentEntry, EntryListResponse } from '@/types/content-entry';
 import type { ContentTypeField } from '@/types/content-type';
 
 type EntryFormValue = string | boolean;
@@ -320,6 +320,29 @@ export function ContentManagerPage() {
     setDeleteError(null);
     try {
       await deleteEntry(selectedType.id, entryToDelete.id);
+      const currentListKey = [
+        'entries', selectedType.id, page, pageSize, sortBy, sortOrder, debouncedSearch,
+      ] as const;
+      const deletingLastRowOnPage = routeMode === 'list' && page > 1 &&
+        queryClient.getQueryData<EntryListResponse>(currentListKey)?.entries.length === 1;
+      queryClient.setQueriesData<EntryListResponse>(
+        { queryKey: ['entries', selectedType.id] },
+        (current) => {
+          if (!current) return current;
+          const entries = current.entries.filter((item) => item.id !== entryToDelete.id);
+          if (entries.length === current.entries.length) return current;
+          const total = Math.max(0, current.pagination.total - 1);
+          return {
+            entries,
+            pagination: {
+              ...current.pagination,
+              total,
+              totalPages: Math.ceil(total / current.pagination.pageSize),
+            },
+          };
+        },
+      );
+      if (deletingLastRowOnPage) setPage((current) => Math.max(1, current - 1));
       await queryClient.invalidateQueries({ queryKey: ['entries', selectedType.id] });
       setEntryToDelete(null);
       backToList();
@@ -484,7 +507,7 @@ export function ContentManagerPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {entriesQuery.isPending || entriesQuery.isFetching ? (
+              {entriesQuery.isPending ? (
                 <tr><td colSpan={displayFields.length + 2} className="px-4 py-12 text-center text-slate-500">Loading entries…</td></tr>
               ) : (entriesQuery.data?.entries.length ?? 0) === 0 ? (
                 <tr><td colSpan={displayFields.length + 2} className="px-4 py-12 text-center text-slate-500">{debouncedSearch ? 'No matching entries.' : 'No entries yet. Create the first one.'}</td></tr>
