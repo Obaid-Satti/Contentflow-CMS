@@ -12,10 +12,11 @@ import {
   Search,
   Trash2,
 } from 'lucide-react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { DynamicFieldInput } from '@/components/content-manager/DynamicFieldInput';
 import {
   createEntry,
   deleteEntry,
@@ -65,6 +66,7 @@ function displayValue(value: unknown): string {
 export function ContentManagerPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const { contentTypeId: routeTypeId, entryId } = useParams();
   const [searchParams] = useSearchParams();
   const [page, setPage] = useState(1);
@@ -84,7 +86,9 @@ export function ContentManagerPage() {
 
   const typeFromRoute = Number(routeTypeId);
   const typeFromQuery = Number(searchParams.get('type'));
-  const routeMode = entryId === 'new' ? 'create' : entryId ? 'edit' : 'list';
+  const routeMode = location.pathname.endsWith('/entries/new')
+    ? 'create'
+    : entryId ? 'edit' : 'list';
   const contentTypesQuery = useQuery({
     queryKey: ['content-types'],
     queryFn: fetchContentTypes,
@@ -110,6 +114,10 @@ export function ContentManagerPage() {
     window.addEventListener('content-types-changed', refreshTypes);
     return () => window.removeEventListener('content-types-changed', refreshTypes);
   }, [queryClient]);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -272,6 +280,24 @@ export function ContentManagerPage() {
   }
 
   if (routeMode !== 'list') {
+    if (selectedType.fields.length === 0) {
+      return (
+        <section className="mx-auto max-w-3xl space-y-5">
+          <div>
+            <button type="button" onClick={backToList} className="mb-2 text-sm text-indigo-600 hover:text-indigo-700">← Back to {selectedType.name}</button>
+            <h1 className="text-2xl font-bold text-slate-900">{routeMode === 'create' ? `New ${selectedType.name}` : `Edit ${selectedType.name}`}</h1>
+          </div>
+          <Card>
+            <CardContent className="space-y-3 p-6">
+              <p className="font-medium text-slate-900">This content type has no fields yet.</p>
+              <p className="text-sm text-slate-500">Add fields in the Content-Type Builder first. They will then appear here automatically.</p>
+              <Link to="/content-types" className="inline-flex text-sm font-medium text-indigo-600 hover:text-indigo-700">Open Content-Type Builder</Link>
+            </CardContent>
+          </Card>
+        </section>
+      );
+    }
+
     return (
       <section className="mx-auto max-w-3xl space-y-5">
         <div className="flex items-start justify-between gap-4">
@@ -292,49 +318,14 @@ export function ContentManagerPage() {
         <form noValidate onSubmit={saveEntry} className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           {selectedType.fields.map((field) => {
             const value = formValues[field.name] ?? (field.type === 'boolean' ? false : '');
-            const inputClass = 'mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500';
             return (
-              <div key={field.name}>
-                <label htmlFor={`entry-${field.name}`} className="block text-sm font-medium text-slate-700">
-                  {field.name}{field.required && <span className="ml-1 text-rose-600">*</span>}
-                </label>
-                {field.type === 'long_text' ? (
-                  <textarea id={`entry-${field.name}`} className={inputClass} rows={5} value={String(value)} required={field.required} onChange={(event) => setFormValues((current) => ({ ...current, [field.name]: event.target.value }))} />
-                ) : field.type === 'enumeration' ? (
-                  <select id={`entry-${field.name}`} className={inputClass} value={String(value)} required={field.required} onChange={(event) => setFormValues((current) => ({ ...current, [field.name]: event.target.value }))}>
-                    <option value="">Choose an option</option>
-                    {(field.options ?? []).map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                ) : field.type === 'boolean' ? (
-                  <label className="mt-2 flex items-center gap-2 text-sm text-slate-700">
-                    <input id={`entry-${field.name}`} type="checkbox" checked={Boolean(value)} onChange={(event) => setFormValues((current) => ({ ...current, [field.name]: event.target.checked }))} />
-                    {value ? 'Yes' : 'No'}
-                  </label>
-                ) : (
-                  <input
-                    id={`entry-${field.name}`}
-                    className={inputClass}
-                    type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'email' ? 'email' : field.type === 'media' ? 'file' : 'text'}
-                    step={field.type === 'number' ? 'any' : undefined}
-                    value={field.type === 'media' ? undefined : String(value)}
-                    required={field.required}
-                    onChange={(event) => setFormValues((current) => ({
-                      ...current,
-                      [field.name]: field.type === 'media'
-                        ? (event.target.files?.[0]?.name ?? '')
-                        : event.target.value,
-                    }))}
-                  />
-                )}
-                {fieldErrors[field.name] && <p role="alert" className="mt-1 text-sm text-rose-600">{fieldErrors[field.name]}</p>}
-                {field.type === 'media' && (
-                  <p className="mt-1 text-xs text-slate-400">
-                    {typeof value === 'string' && value ? `Current file reference: ${value}. ` : ''}
-                    File storage is not connected yet; only the selected filename is saved.
-                  </p>
-                )}
-                {field.unique && <p className="mt-1 text-xs text-slate-400">This value must be unique.</p>}
-              </div>
+              <DynamicFieldInput
+                key={field.name}
+                field={field}
+                value={value}
+                error={fieldErrors[field.name]}
+                onChange={(nextValue) => setFormValues((current) => ({ ...current, [field.name]: nextValue }))}
+              />
             );
           })}
 

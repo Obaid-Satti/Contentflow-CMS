@@ -54,6 +54,16 @@ export async function updateContentType(
   name: string,
   apiId: string,
   fields: ContentTypeField[],
+  fieldChange?: {
+    fromName: string;
+    toName: string;
+    fromType: ContentTypeField['type'];
+    toType: ContentTypeField['type'];
+    uniqueChange?: boolean;
+    confirmed?: boolean;
+    deleteDuplicatesConfirmed?: boolean;
+    defaultValue?: unknown;
+  },
 ): Promise<ContentType> {
   const response = await axios.put<ContentType>(
     `${API_BASE_URL}/content-types/${id}`,
@@ -61,6 +71,7 @@ export async function updateContentType(
       name,
       apiId,
       fields,
+      ...(fieldChange ? { fieldChange } : {}),
     },
     {
       headers: authHeaders(),

@@ -122,7 +122,7 @@ export function ContentTypesPage() {
     setIsFieldModalOpen(true);
   };
 
-  const saveField = async (field: ContentTypeField) => {
+  const saveField = async (field: ContentTypeField, migrationDefault?: unknown, confirmed = false, deleteDuplicatesConfirmed = false) => {
     if (!selectedContentType) return;
 
     const fields = [...(selectedContentType.fields ?? [])];
@@ -152,6 +152,18 @@ export function ContentTypesPage() {
       selectedContentType.name,
       selectedContentType.api_id,
       fields,
+      editingField && (editingField.name !== field.name || editingField.type !== field.type || editingField.unique !== field.unique)
+        ? {
+          fromName: editingField.name,
+          toName: field.name,
+          fromType: editingField.type,
+          toType: field.type,
+          uniqueChange: editingField.unique !== field.unique,
+          confirmed,
+          deleteDuplicatesConfirmed,
+          ...(migrationDefault !== undefined ? { defaultValue: migrationDefault } : {}),
+        }
+        : undefined,
     );
     setContentTypes((current) =>
       current.map((item) => (item.id === updated.id ? updated : item)),
@@ -735,13 +747,15 @@ export function ContentTypesPage() {
       )}
 
       {/* Add / Edit Field Modal */}
-      <FieldModal
-        isOpen={isFieldModalOpen}
-        field={editingField}
-        onClose={closeFieldModal}
-        onSave={saveField}
-        onRemove={removeField}
-      />
+      {isFieldModalOpen && (
+        <FieldModal
+          isOpen={true}
+          field={editingField}
+          onClose={closeFieldModal}
+          onSave={saveField}
+          onRemove={removeField}
+        />
+      )}
     </div>
   );
 }
