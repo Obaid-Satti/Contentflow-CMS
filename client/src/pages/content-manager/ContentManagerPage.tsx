@@ -7,11 +7,14 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  CircleAlert,
+  CircleCheck,
   Pencil,
   Plus,
   RefreshCw,
   Search,
   Trash2,
+  X,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -89,7 +92,6 @@ function displayValue(value: unknown): string {
 interface DeleteEntryDialogProps {
   entry: ContentEntry;
   contentTypeName: string;
-  error: string | null;
   isDeleting: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -98,7 +100,6 @@ interface DeleteEntryDialogProps {
 function DeleteEntryDialog({
   entry,
   contentTypeName,
-  error,
   isDeleting,
   onCancel,
   onConfirm,
@@ -110,12 +111,30 @@ function DeleteEntryDialog({
           <h2 id="delete-entry-title" className="text-lg font-semibold text-slate-900">Delete this entry?</h2>
           <p className="mt-2 text-sm text-slate-600">This permanently removes entry #{entry.id} from {contentTypeName}.</p>
         </div>
-        {error && <p role="alert" className="mx-6 mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
         <div className="mt-5 flex justify-end gap-3 border-t bg-slate-50 px-6 py-4">
           <Button type="button" variant="outline" disabled={isDeleting} onClick={onCancel}>Cancel</Button>
           <Button type="button" disabled={isDeleting} className="bg-rose-600 hover:bg-rose-700" onClick={onConfirm}>{isDeleting ? 'Deleting…' : 'Delete Entry'}</Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+type ToastMessage = { type: 'success' | 'error'; message: string };
+
+function DeleteToast({ toast, onClose }: { toast: ToastMessage; onClose: () => void }) {
+  const isSuccess = toast.type === 'success';
+  return (
+    <div
+      role={isSuccess ? 'status' : 'alert'}
+      aria-live={isSuccess ? 'polite' : 'assertive'}
+      className={`fixed right-4 top-4 z-[60] flex max-w-sm items-start gap-3 rounded-lg border px-4 py-3 shadow-lg ${isSuccess ? 'border-emerald-200 bg-white text-emerald-800' : 'border-rose-200 bg-white text-rose-800'}`}
+    >
+      {isSuccess ? <CircleCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" /> : <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />}
+      <p className="flex-1 text-sm font-medium">{toast.message}</p>
+      <button type="button" onClick={onClose} aria-label="Dismiss notification" className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }
@@ -136,9 +155,9 @@ export function ContentManagerPage() {
   const [formValues, setFormValues] = useState<Record<string, EntryFormValue>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleteToast, setDeleteToast] = useState<ToastMessage | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<ContentEntry | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const typeFromRoute = Number(routeTypeId);
@@ -175,6 +194,12 @@ export function ContentManagerPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!deleteToast) return;
+    const timer = window.setTimeout(() => setDeleteToast(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [deleteToast]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -317,7 +342,6 @@ export function ContentManagerPage() {
   const confirmDelete = async () => {
     if (!selectedType || !entryToDelete) return;
     setIsDeleting(true);
-    setDeleteError(null);
     try {
       await deleteEntry(selectedType.id, entryToDelete.id);
       const currentListKey = [
@@ -344,10 +368,11 @@ export function ContentManagerPage() {
       );
       if (deletingLastRowOnPage) setPage((current) => Math.max(1, current - 1));
       await queryClient.invalidateQueries({ queryKey: ['entries', selectedType.id] });
+      setDeleteToast({ type: 'success', message: `Entry #${entryToDelete.id} was deleted.` });
       setEntryToDelete(null);
       backToList();
     } catch (deleteFailure: unknown) {
-      setDeleteError(getErrorMessage(deleteFailure));
+      setDeleteToast({ type: 'error', message: getErrorMessage(deleteFailure) });
     } finally {
       setIsDeleting(false);
     }
@@ -398,6 +423,7 @@ export function ContentManagerPage() {
 
     return (
       <section className="mx-auto max-w-3xl space-y-5">
+        {deleteToast && <DeleteToast toast={deleteToast} onClose={() => setDeleteToast(null)} />}
         <div className="flex items-start justify-between gap-4">
           <div>
             <button type="button" onClick={backToList} className="mb-2 text-sm text-indigo-600 hover:text-indigo-700">← Back to {selectedType.name}</button>
@@ -449,7 +475,6 @@ export function ContentManagerPage() {
           <DeleteEntryDialog
             entry={entryToDelete}
             contentTypeName={selectedType.name}
-            error={deleteError}
             isDeleting={isDeleting}
             onCancel={() => setEntryToDelete(null)}
             onConfirm={() => void confirmDelete()}
@@ -460,7 +485,8 @@ export function ContentManagerPage() {
   }
 
   return (
-    <section className="space-y-6">
+      <section className="space-y-6">
+      {deleteToast && <DeleteToast toast={deleteToast} onClose={() => setDeleteToast(null)} />}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Content Manager</p>
@@ -524,7 +550,7 @@ export function ContentManagerPage() {
                       <Button type="button" size="sm" variant="ghost" onClick={() => navigate(`/content-manager/${selectedType.id}/entries/${item.id}`)} aria-label={`Edit entry ${item.id}`}>
                         <Pencil className="mr-1 h-3.5 w-3.5" />Edit
                       </Button>
-                      <Button type="button" size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700" onClick={() => { setDeleteError(null); setEntryToDelete(item); }} aria-label={`Delete entry ${item.id}`}>
+                      <Button type="button" size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700" onClick={() => setEntryToDelete(item)} aria-label={`Delete entry ${item.id}`}>
                         <Trash2 className="mr-1 h-3.5 w-3.5" />Delete
                       </Button>
                     </div>
@@ -548,7 +574,6 @@ export function ContentManagerPage() {
         <DeleteEntryDialog
           entry={entryToDelete}
           contentTypeName={selectedType.name}
-          error={deleteError}
           isDeleting={isDeleting}
           onCancel={() => setEntryToDelete(null)}
           onConfirm={() => void confirmDelete()}
