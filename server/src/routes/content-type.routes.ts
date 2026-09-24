@@ -9,10 +9,13 @@ import {
 } from '../controllers/content-type.controller.js';
 
 import { authMiddleware } from '../middleware/auth.middleware.js';
+import entryRoutes from './entry.routes.js';
 
 const router = Router();
 
 router.use(authMiddleware);
+
+router.use('/:contentTypeId/entries', entryRoutes);
 
 /**
  * @swagger
