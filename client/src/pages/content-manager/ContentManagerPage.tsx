@@ -196,10 +196,28 @@ export function ContentManagerPage() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!deleteToast) return;
-    const timer = window.setTimeout(() => setDeleteToast(null), 5000);
+    const navigationState = location.state as { contentManagerToast?: ToastMessage } | null;
+    const toast = navigationState?.contentManagerToast;
+    if (!toast || (toast.type !== 'success' && toast.type !== 'error')) return;
+
+    const timer = window.setTimeout(() => setDeleteToast(toast), 0);
     return () => window.clearTimeout(timer);
-  }, [deleteToast]);
+  }, [location.hash, location.pathname, location.search, location.state, navigate]);
+
+  useEffect(() => {
+    if (!deleteToast) return;
+    const timer = window.setTimeout(() => {
+      setDeleteToast(null);
+      const navigationState = location.state as { contentManagerToast?: ToastMessage } | null;
+      if (navigationState?.contentManagerToast) {
+        navigate(`${location.pathname}${location.search}${location.hash}`, {
+          replace: true,
+          state: null,
+        });
+      }
+    }, 5000);
+    return () => window.clearTimeout(timer);
+  }, [deleteToast, location.hash, location.pathname, location.search, location.state, navigate]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -368,9 +386,14 @@ export function ContentManagerPage() {
       );
       if (deletingLastRowOnPage) setPage((current) => Math.max(1, current - 1));
       await queryClient.invalidateQueries({ queryKey: ['entries', selectedType.id] });
-      setDeleteToast({ type: 'success', message: `Entry #${entryToDelete.id} was deleted.` });
+      const successToast: ToastMessage = {
+        type: 'success',
+        message: `Entry #${entryToDelete.id} was deleted.`,
+      };
       setEntryToDelete(null);
-      backToList();
+      navigate(`/content-manager/${selectedType.id}`, {
+        state: { contentManagerToast: successToast },
+      });
     } catch (deleteFailure: unknown) {
       setDeleteToast({ type: 'error', message: getErrorMessage(deleteFailure) });
     } finally {
