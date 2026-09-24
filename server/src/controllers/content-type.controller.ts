@@ -39,6 +39,16 @@ export async function createContentTypeController(
     } catch (error) {
         console.error('CREATE CONTENT TYPE ERROR:', error);
 
+        if (
+            error instanceof Error &&
+            'code' in error &&
+            error.code === '23505'
+        ) {
+            return res.status(409).json({
+                message: 'A content type with this API ID already exists',
+            });
+        }
+
         return res.status(500).json({
             message: 'Failed to create content type',
             error: error instanceof Error ? error.message : error,
@@ -122,6 +132,16 @@ export async function updateContentTypeController(
         return res.json(contentType);
     } catch (error) {
         console.error(error);
+
+        if (
+            error instanceof Error &&
+            'code' in error &&
+            error.code === '23505'
+        ) {
+            return res.status(409).json({
+                message: 'A content type with this API ID already exists',
+            });
+        }
 
         return res
             .status(500)
