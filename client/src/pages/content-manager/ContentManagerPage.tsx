@@ -38,16 +38,38 @@ function getErrorMessage(error: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
-function getServerFieldErrors(error: unknown): Record<string, string> {
-  if (typeof error !== 'object' || error === null || !('response' in error)) return {};
-  const response = (error as {
-    response?: { data?: { errors?: Array<{ field?: string; message?: string }> } };
-  }).response;
-  const result: Record<string, string> = {};
-  for (const issue of response?.data?.errors ?? []) {
-    if (issue.field && issue.field !== '_form') result[issue.field] = issue.message ?? 'Invalid value.';
+function getServerValidationFeedback(
+  error: unknown,
+  validFieldNames: Set<string>,
+): { fieldErrors: Record<string, string>; formError: string | null } {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return { fieldErrors: {}, formError: getErrorMessage(error) };
   }
-  return result;
+  const response = (error as {
+    response?: { data?: { message?: string; errors?: Array<{ field?: string; message?: string }> } };
+  }).response;
+  const fieldErrors: Record<string, string> = {};
+  const formMessages: string[] = [];
+  for (const issue of response?.data?.errors ?? []) {
+    const message = issue.message ?? 'Invalid value.';
+    if (issue.field && issue.field !== '_form' && validFieldNames.has(issue.field)) {
+      fieldErrors[issue.field] = message;
+    } else {
+      formMessages.push(message);
+    }
+  }
+  const formError = formMessages.length > 0
+    ? formMessages.join(' ')
+    : Object.keys(fieldErrors).length > 0
+      ? null
+      : response?.data?.message ?? getErrorMessage(error);
+  return { fieldErrors, formError };
+}
+
+function isValidDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 function toFormValue(field: ContentTypeField, value: unknown): EntryFormValue {
@@ -200,7 +222,7 @@ export function ContentManagerPage() {
         nextErrors[field.name] = 'Enter a valid email address.';
       } else if (field.type === 'enumeration' && !field.options?.includes(String(value))) {
         nextErrors[field.name] = 'Choose one of the available options.';
-      } else if (field.type === 'date' && typeof value === 'string' && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      } else if (field.type === 'date' && (typeof value !== 'string' || !isValidDate(value))) {
         nextErrors[field.name] = 'Enter a valid date.';
       }
     }
@@ -213,7 +235,15 @@ export function ContentManagerPage() {
     setFormError(null);
     const clientErrors = validateForm();
     setFieldErrors(clientErrors);
-    if (Object.keys(clientErrors).length > 0) return;
+    if (Object.keys(clientErrors).length > 0) {
+      const firstInvalidField = Object.keys(clientErrors)[0];
+      if (firstInvalidField) {
+        window.requestAnimationFrame(() => {
+          document.getElementById(`entry-${firstInvalidField}`)?.focus();
+        });
+      }
+      return;
+    }
 
     const data: Record<string, unknown> = {};
     for (const field of selectedType.fields) {
@@ -232,8 +262,18 @@ export function ContentManagerPage() {
       await queryClient.invalidateQueries({ queryKey: ['entries', selectedType.id] });
       backToList();
     } catch (saveError: unknown) {
-      setFormError(getErrorMessage(saveError));
-      setFieldErrors(getServerFieldErrors(saveError));
+      const feedback = getServerValidationFeedback(
+        saveError,
+        new Set(selectedType.fields.map((field) => field.name)),
+      );
+      setFormError(feedback.formError);
+      setFieldErrors(feedback.fieldErrors);
+      const firstInvalidField = Object.keys(feedback.fieldErrors)[0];
+      if (firstInvalidField) {
+        window.requestAnimationFrame(() => {
+          document.getElementById(`entry-${firstInvalidField}`)?.focus();
+        });
+      }
     } finally {
       setIsSaving(false);
     }
@@ -324,7 +364,16 @@ export function ContentManagerPage() {
                 field={field}
                 value={value}
                 error={fieldErrors[field.name]}
-                onChange={(nextValue) => setFormValues((current) => ({ ...current, [field.name]: nextValue }))}
+                onChange={(nextValue) => {
+                  setFormValues((current) => ({ ...current, [field.name]: nextValue }));
+                  setFieldErrors((current) => {
+                    if (!(field.name in current)) return current;
+                    const next = { ...current };
+                    delete next[field.name];
+                    return next;
+                  });
+                  setFormError(null);
+                }}
               />
             );
           })}

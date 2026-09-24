@@ -29,19 +29,25 @@ function renderFieldInput(
   field: ContentTypeField,
   value: DynamicFieldValue,
   onChange: DynamicFieldInputProps['onChange'],
+  error?: string,
 ): ReactNode {
   const id = `entry-${field.name}`;
   const required = field.required;
+  const fieldClass = error
+    ? `${inputClass} border-rose-500 focus:border-rose-500 focus:ring-rose-500`
+    : inputClass;
 
   switch (field.type) {
     case 'long_text':
       return (
         <textarea
           id={id}
-          className={inputClass}
+          className={fieldClass}
           rows={5}
           value={String(value)}
           required={required}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
           onChange={(event) => onChange(event.target.value)}
         />
       );
@@ -52,6 +58,8 @@ function renderFieldInput(
             id={id}
             type="checkbox"
             checked={Boolean(value)}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? `${id}-error` : undefined}
             onChange={(event) => onChange(event.target.checked)}
           />
           {value ? 'Yes' : 'No'}
@@ -61,9 +69,11 @@ function renderFieldInput(
       return (
         <select
           id={id}
-          className={inputClass}
+          className={fieldClass}
           value={String(value)}
           required={required}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
           onChange={(event) => onChange(event.target.value)}
         >
           <option value="">Choose an option</option>
@@ -74,9 +84,11 @@ function renderFieldInput(
       return (
         <input
           id={id}
-          className={inputClass}
+          className={fieldClass}
           type="file"
           required={required && !value}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
           onChange={(event) => onChange(event.target.files?.[0]?.name ?? '')}
         />
       );
@@ -88,9 +100,11 @@ function renderFieldInput(
       return (
         <input
           id={id}
-          className={inputClass}
+          className={fieldClass}
           type={inputType}
           step={inputType === 'number' ? 'any' : undefined}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
           value={String(value)}
           required={required}
           onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
@@ -113,7 +127,7 @@ export function DynamicFieldInput({ field, value, error, onChange }: DynamicFiel
       <label htmlFor={id} className="block text-sm font-medium text-slate-700">
         {field.name}{field.required && <span className="ml-1 text-rose-600">*</span>}
       </label>
-      {renderFieldInput(field, value, onChange)}
+      {renderFieldInput(field, value, onChange, error)}
       {error && <p id={errorId} role="alert" className="mt-1 text-sm text-rose-600">{error}</p>}
       {field.type === 'media' && (
         <p className="mt-1 text-xs text-slate-400">
