@@ -142,6 +142,19 @@ describe('Content Entry server validation', () => {
         });
     });
 
+    it('rejects whitespace in a required field during update', async () => {
+        const created = await createEntry({ title: 'Update required', quantity: 1 });
+        const response = await auth(
+            request(app).put(`${entriesUrl()}/${created.body.id}`),
+        ).send({ data: { title: '   ', quantity: 1 } });
+
+        expect(response.status).toBe(400);
+        expect(response.body.errors).toContainEqual({
+            field: 'title',
+            message: 'This field is required.',
+        });
+    });
+
     it('rejects text in a number field', async () => {
         const response = await createEntry({ title: 'Numeric test', quantity: 'many' });
 
@@ -164,6 +177,30 @@ describe('Content Entry server validation', () => {
                 title: `Invalid ${Object.keys(extraData)[0]}`,
                 quantity: 1,
                 ...extraData,
+            });
+            expect(response.status).toBe(400);
+            expect(response.body.errors.length).toBeGreaterThan(0);
+        }
+    });
+
+    it('revalidates number, email, date, and enumeration values during update', async () => {
+        const created = await createEntry({ title: 'Update validation', quantity: 1 });
+        const invalidCases = [
+            { quantity: 'two' },
+            { email: 'invalid-address' },
+            { published_on: '2026-02-30' },
+            { status: 'archived' },
+        ];
+
+        for (const extraData of invalidCases) {
+            const response = await auth(
+                request(app).put(`${entriesUrl()}/${created.body.id}`),
+            ).send({
+                data: {
+                    title: 'Update validation',
+                    quantity: 1,
+                    ...extraData,
+                },
             });
             expect(response.status).toBe(400);
             expect(response.body.errors.length).toBeGreaterThan(0);
@@ -207,6 +244,20 @@ describe('Content Entry server validation', () => {
 
         expect(response.status).toBe(200);
         expect(response.body.data.quantity).toBe(2);
+    });
+
+    it('rejects a duplicate unique value when updating another entry', async () => {
+        await createEntry({ title: 'Taken title', quantity: 1 });
+        const second = await createEntry({ title: 'Available title', quantity: 2 });
+        const response = await auth(
+            request(app).put(`${entriesUrl()}/${second.body.id}`),
+        ).send({ data: { title: 'Taken title', quantity: 2 } });
+
+        expect(response.status).toBe(409);
+        expect(response.body.errors).toContainEqual({
+            field: 'title',
+            message: 'A value for title already exists.',
+        });
     });
 });
 
