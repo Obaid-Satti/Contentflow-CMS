@@ -34,7 +34,7 @@ async function validateAndCheckUnique(
     excludeEntryId?: number,
 ) {
     const result = validateEntryData(fields, input);
-    if (!result.success) return result;
+    if (!result.success) return { ...result, status: 400 as const };
 
     const errors = [];
     for (const field of fields) {
@@ -58,7 +58,7 @@ async function validateAndCheckUnique(
     }
 
     return errors.length > 0
-        ? { success: false as const, errors }
+        ? { success: false as const, status: 409 as const, errors }
         : result;
 }
 
@@ -151,7 +151,7 @@ export async function createEntryController(req: Request, res: Response) {
             req.body?.data,
         );
         if (!result.success) {
-            return res.status(result.errors.some((issue) => issue.message.includes('already exists')) ? 409 : 400)
+            return res.status(result.status)
                 .json({ message: 'Entry validation failed', errors: result.errors });
         }
 
@@ -187,7 +187,7 @@ export async function updateEntryController(req: Request, res: Response) {
             entryId,
         );
         if (!result.success) {
-            return res.status(result.errors.some((issue) => issue.message.includes('already exists')) ? 409 : 400)
+            return res.status(result.status)
                 .json({ message: 'Entry validation failed', errors: result.errors });
         }
 

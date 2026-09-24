@@ -13,6 +13,37 @@ export interface EntryValidationIssue {
     message: string;
 }
 
+function isValidDate(value: string): boolean {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function getValueSchema(field: EntryFieldDefinition): z.ZodType {
+    switch (field.type) {
+        case 'short_text':
+        case 'long_text':
+            return z.string({ error: 'Must be text.' });
+        case 'number':
+            return z.number({ error: 'Must be a number.' }).finite('Must be a finite number.');
+        case 'boolean':
+            return z.boolean({ error: 'Must be true or false.' });
+        case 'date':
+            return z.string().refine(isValidDate, 'Must be a valid date in YYYY-MM-DD format.');
+        case 'email':
+            return z.email('Must be a valid email address.');
+        case 'enumeration':
+            return z.string().refine(
+                (value) => field.options?.includes(value) ?? false,
+                `Must be one of: ${(field.options ?? []).join(', ')}.`,
+            );
+        case 'media':
+            return z.string().min(1, 'Must be a media file reference.');
+        default:
+            return z.never({ error: 'This field has an unsupported type.' });
+    }
+}
+
 export function validateEntryData(
     fields: EntryFieldDefinition[],
     input: unknown,
@@ -20,100 +51,56 @@ export function validateEntryData(
     success: false;
     errors: EntryValidationIssue[];
 } {
-    const parsedObject = z.record(z.string(), z.unknown()).safeParse(input);
-    if (!parsedObject.success) {
+    const entryDataSchema = z.record(z.string(), z.unknown()).superRefine((data, ctx) => {
+        const definedFields = new Set(fields.map((field) => field.name));
+
+        for (const key of Object.keys(data)) {
+            if (!definedFields.has(key)) {
+                ctx.addIssue({
+                    code: 'custom',
+                    path: [key],
+                    message: 'This field is not defined for the content type.',
+                });
+            }
+        }
+
+        for (const field of fields) {
+            const value = data[field.name];
+            const empty = value === undefined || value === null || value === '' ||
+                (typeof value === 'string' && value.trim() === '');
+
+            if (empty) {
+                if (field.required) {
+                    ctx.addIssue({
+                        code: 'custom',
+                        path: [field.name],
+                        message: 'This field is required.',
+                    });
+                }
+                continue;
+            }
+
+            const parsedValue = getValueSchema(field).safeParse(value);
+            if (!parsedValue.success) {
+                ctx.addIssue({
+                    code: 'custom',
+                    path: [field.name],
+                    message: parsedValue.error.issues[0]?.message ?? 'Invalid field value.',
+                });
+            }
+        }
+    });
+
+    const parsed = entryDataSchema.safeParse(input);
+    if (!parsed.success) {
         return {
             success: false,
-            errors: [{ field: '_form', message: 'Entry data must be a JSON object.' }],
+            errors: parsed.error.issues.map((issue) => ({
+                field: typeof issue.path[0] === 'string' ? issue.path[0] : '_form',
+                message: issue.message,
+            })),
         };
     }
 
-    const data = parsedObject.data;
-    const errors: EntryValidationIssue[] = [];
-    const knownNames = new Set(fields.map((field) => field.name));
-
-    for (const key of Object.keys(data)) {
-        if (!knownNames.has(key)) {
-            errors.push({ field: key, message: 'This field is not defined for the content type.' });
-        }
-    }
-
-    for (const field of fields) {
-        const value = data[field.name];
-        const isEmpty = value === undefined || value === null || value === '';
-
-        if (isEmpty) {
-            if (field.required) {
-                errors.push({ field: field.name, message: 'This field is required.' });
-            }
-            continue;
-        }
-
-        let valid: boolean;
-        switch (field.type) {
-            case 'short_text':
-            case 'long_text':
-                valid = typeof value === 'string';
-                break;
-            case 'number':
-                valid = typeof value === 'number' && Number.isFinite(value);
-                break;
-            case 'boolean':
-                valid = typeof value === 'boolean';
-                break;
-            case 'date':
-                valid = isValidDate(value);
-                break;
-            case 'email':
-                valid = typeof value === 'string' && z.email().safeParse(value).success;
-                break;
-            case 'enumeration':
-                valid = typeof value === 'string' && Boolean(field.options?.includes(value));
-                break;
-            case 'media':
-                valid = typeof value === 'string';
-                break;
-            default:
-                valid = false;
-        }
-
-        if (!valid) {
-            errors.push({ field: field.name, message: getTypeErrorMessage(field) });
-        }
-    }
-
-    return errors.length > 0
-        ? { success: false, errors }
-        : { success: true, data };
-}
-
-function isValidDate(value: unknown): boolean {
-    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        return false;
-    }
-
-    const date = new Date(`${value}T00:00:00.000Z`);
-    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-function getTypeErrorMessage(field: EntryFieldDefinition): string {
-    switch (field.type) {
-        case 'short_text':
-        case 'long_text':
-            return 'Must be text.';
-        case 'number':
-            return 'Must be a number.';
-        case 'boolean':
-            return 'Must be true or false.';
-        case 'date':
-            return 'Must be a valid date in YYYY-MM-DD format.';
-        case 'email':
-            return 'Must be a valid email address.';
-        case 'enumeration':
-            return `Must be one of: ${(field.options ?? []).join(', ')}.`;
-        case 'media':
-            return 'Must be a media file reference.';
-        default:
-            return 'This field has an unsupported type.';
-    }
+    return { success: true, data: parsed.data };
 }
