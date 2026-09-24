@@ -7,7 +7,7 @@ export interface EntryListOptions {
     sortOrder: 'asc' | 'desc';
     search?: string;
     searchableFields: string[];
-    sortableFields: string[];
+    sortableFields: Array<{ name: string; type: string }>;
 }
 
 export async function getEntries(
@@ -35,10 +35,34 @@ export async function getEntries(
         .modify((builder) => {
             if (options.sortBy === 'created_at' || options.sortBy === 'updated_at') {
                 builder.orderBy(options.sortBy, options.sortOrder);
-            } else if (options.sortableFields.includes(options.sortBy)) {
-                builder.orderByRaw(`data ->> ? ${options.sortOrder}`, [options.sortBy]);
             } else {
-                builder.orderBy('updated_at', 'desc');
+                const sortField = options.sortableFields.find(
+                    (field) => field.name === options.sortBy,
+                );
+
+                if (!sortField) {
+                    builder.orderBy('updated_at', 'desc');
+                } else if (sortField.type === 'number') {
+                    builder.orderByRaw(
+                        `NULLIF(data ->> ?, '')::numeric ${options.sortOrder} NULLS LAST`,
+                        [sortField.name],
+                    );
+                } else if (sortField.type === 'date') {
+                    builder.orderByRaw(
+                        `NULLIF(data ->> ?, '')::date ${options.sortOrder} NULLS LAST`,
+                        [sortField.name],
+                    );
+                } else if (sortField.type === 'boolean') {
+                    builder.orderByRaw(
+                        `NULLIF(data ->> ?, '')::boolean ${options.sortOrder} NULLS LAST`,
+                        [sortField.name],
+                    );
+                } else {
+                    builder.orderByRaw(
+                        `data ->> ? ${options.sortOrder} NULLS LAST`,
+                        [sortField.name],
+                    );
+                }
             }
         })
         .orderBy('id', 'asc')

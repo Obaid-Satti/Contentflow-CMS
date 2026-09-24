@@ -286,12 +286,39 @@ describe('Content Entry list query behavior', () => {
                 sortOrder: 'desc',
             }),
         );
+        const numericPage = await auth(
+            request(app).get(entriesUrl()).query({
+                page: 1,
+                pageSize: 10,
+                sortBy: 'quantity',
+                sortOrder: 'asc',
+            }),
+        );
+        const largerPage = await auth(
+            request(app).get(entriesUrl()).query({ page: 1, pageSize: 25 }),
+        );
 
         expect(firstPage.body.pagination).toMatchObject({ total: 30, totalPages: 3 });
         expect(firstPage.body.entries.map((entry: { data: { title: string } }) => entry.data.title))
             .toEqual(Array.from({ length: 10 }, (_, index) => `Item ${String(30 - index).padStart(2, '0')}`));
         expect(lastPage.body.entries.map((entry: { data: { title: string } }) => entry.data.title))
             .toEqual(Array.from({ length: 10 }, (_, index) => `Item ${String(10 - index).padStart(2, '0')}`));
+        expect(numericPage.body.entries.map((entry: { data: { quantity: number } }) => entry.data.quantity))
+            .toEqual(Array.from({ length: 10 }, (_, index) => index + 1));
+        expect(largerPage.body.entries).toHaveLength(25);
+        expect(largerPage.body.pagination.totalPages).toBe(2);
+    });
+
+    it('rejects unsupported page sizes and sort fields', async () => {
+        const invalidPageSize = await auth(
+            request(app).get(entriesUrl()).query({ pageSize: 20 }),
+        );
+        const invalidSortField = await auth(
+            request(app).get(entriesUrl()).query({ sortBy: 'not_a_field' }),
+        );
+
+        expect(invalidPageSize.status).toBe(400);
+        expect(invalidSortField.status).toBe(400);
     });
 
     it('searches across text fields and returns only matching entries', async () => {

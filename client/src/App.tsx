@@ -6,6 +6,7 @@ import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 import { ContentTypesPage } from '@/pages/content-types/ContentTypesPage';
+import { ContentManagerPage } from '@/pages/content-manager/ContentManagerPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 
@@ -28,16 +29,11 @@ function App() {
           <Route element={<AdminLayout />}>
             <Route
               path="/content-manager"
-              element={
-                <PlaceholderPage
-                  page={
-                    navigationItems.find(
-                      (page) => page.path === '/content-manager',
-                    )!
-                  }
-                />
-              }
+              element={<ContentManagerPage />}
             />
+            <Route path="/content-manager/:contentTypeId" element={<ContentManagerPage />} />
+            <Route path="/content-manager/:contentTypeId/entries/new" element={<ContentManagerPage />} />
+            <Route path="/content-manager/:contentTypeId/entries/:entryId" element={<ContentManagerPage />} />
 
             <Route
               path="/content-types"
