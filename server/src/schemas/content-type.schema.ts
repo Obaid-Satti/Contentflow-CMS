@@ -17,6 +17,7 @@ const contentTypeFieldSchema = z
     .object({
         name: z
             .string()
+            .trim()
             .min(1, 'Field name is required')
             .refine(
                 (name) => !RESERVED_FIELD_NAMES.includes(
@@ -83,7 +84,20 @@ export const createContentTypeSchema = z.object({
             'API ID can only contain lowercase letters, numbers, and hyphens',
         ),
 
-    fields: z.array(contentTypeFieldSchema),
+    fields: z.array(contentTypeFieldSchema).superRefine((fields, ctx) => {
+        const seenNames = new Set<string>();
+        fields.forEach((field, index) => {
+            const normalizedName = field.name.toLowerCase();
+            if (seenNames.has(normalizedName)) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: [index, 'name'],
+                    message: 'Field names must be unique within a content type',
+                });
+            }
+            seenNames.add(normalizedName);
+        });
+    }),
 });
 
 export const updateContentTypeSchema = createContentTypeSchema;

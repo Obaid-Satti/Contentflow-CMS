@@ -17,10 +17,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 import ContentTypeModal from './ContentTypeModal.tsx';
+import FieldModal from './FieldModal.tsx';
 
-import { fetchContentTypes } from '@/services/content-type.service';
+import {
+  fetchContentTypes,
+  updateContentType,
+} from '@/services/content-type.service';
 
-import type { ContentType } from '@/types/content-type';
+import type {
+  ContentType,
+  ContentTypeField,
+} from '@/types/content-type';
 
 export function ContentTypesPage() {
   const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
@@ -31,9 +38,18 @@ export function ContentTypesPage() {
   const [refreshKey, setRefreshKey] = useState<number>(0);
 
   // Content type modal state
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isModalOpen, setIsModalOpen] =
+    useState<boolean>(false);
+
   const [selectedContentType, setSelectedContentType] =
     useState<ContentType | null>(null);
+
+  // Field modal state
+  const [isFieldModalOpen, setIsFieldModalOpen] =
+    useState<boolean>(false);
+
+  const [editingField, setEditingField] =
+    useState<ContentTypeField | null>(null);
 
   const refetch = () => {
     setIsLoading(true);
@@ -54,6 +70,82 @@ export function ContentTypesPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedContentType(null);
+  };
+
+  const openFieldModal = (contentType: ContentType) => {
+    setSelectedContentType(contentType);
+    setEditingField(null);
+    setIsFieldModalOpen(true);
+  };
+
+  const openEditFieldModal = (
+    contentType: ContentType,
+    field: ContentTypeField,
+  ) => {
+    setSelectedContentType(contentType);
+    setEditingField(field);
+    setIsFieldModalOpen(true);
+  };
+
+  const saveField = async (field: ContentTypeField) => {
+    if (!selectedContentType) return;
+
+    const fields = [...(selectedContentType.fields ?? [])];
+    const duplicate = fields.some(
+      (item) =>
+        item.name.toLowerCase() === field.name.toLowerCase() &&
+        (!editingField || item.name !== editingField.name),
+    );
+    if (duplicate) {
+      throw new Error('A field with this name already exists.');
+    }
+
+    if (editingField) {
+      const fieldIndex = fields.findIndex(
+        (item) => item.name === editingField.name,
+      );
+      if (fieldIndex === -1) {
+        throw new Error('This field no longer exists. Refresh and try again.');
+      }
+      fields[fieldIndex] = field;
+    } else {
+      fields.push(field);
+    }
+
+    const updated = await updateContentType(
+      selectedContentType.id,
+      selectedContentType.name,
+      selectedContentType.api_id,
+      fields,
+    );
+    setContentTypes((current) =>
+      current.map((item) => (item.id === updated.id ? updated : item)),
+    );
+    setSelectedContentType(updated);
+    closeFieldModal();
+  };
+
+  const removeField = async () => {
+    if (!selectedContentType || !editingField) return;
+
+    const fields = (selectedContentType.fields ?? []).filter(
+      (item) => item.name !== editingField.name,
+    );
+    const updated = await updateContentType(
+      selectedContentType.id,
+      selectedContentType.name,
+      selectedContentType.api_id,
+      fields,
+    );
+    setContentTypes((current) =>
+      current.map((item) => (item.id === updated.id ? updated : item)),
+    );
+    closeFieldModal();
+  };
+
+  const closeFieldModal = () => {
+    setIsFieldModalOpen(false);
+    setEditingField(null);
   };
 
   useEffect(() => {
@@ -167,7 +259,6 @@ export function ContentTypesPage() {
               className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''
                 }`}
             />
-
             Refresh
           </Button>
 
@@ -269,7 +360,6 @@ export function ContentTypesPage() {
 
       {/* Main Content Area */}
       {isLoading ? (
-        /* Loading skeleton */
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <Card
@@ -288,7 +378,6 @@ export function ContentTypesPage() {
           ))}
         </div>
       ) : error ? (
-        /* Error State */
         <Card className="border-rose-200 bg-rose-50/50 p-6">
           <div className="flex items-start gap-4">
             <div className="rounded-full bg-rose-100 p-2 text-rose-600">
@@ -318,7 +407,6 @@ export function ContentTypesPage() {
           </div>
         </Card>
       ) : contentTypes.length === 0 ? (
-        /* Empty State */
         <Card className="border-2 border-dashed border-slate-300 bg-white">
           <CardContent className="flex flex-col items-center justify-center p-12 text-center">
             <div
@@ -353,7 +441,6 @@ export function ContentTypesPage() {
           </CardContent>
         </Card>
       ) : filteredContentTypes.length === 0 ? (
-        /* No search results */
         <Card className="border-slate-200 bg-white p-8 text-center">
           <p className="text-sm text-slate-500">
             No content types matching &quot;
@@ -456,24 +543,18 @@ export function ContentTypesPage() {
 
                           {fieldsList.length > 0 && (
                             <div className="flex max-w-xs flex-wrap gap-1">
-                              {fieldsList
-                                .slice(0, 3)
-                                .map((field) => (
-                                  <span
+                              {fieldsList.map((field) => (
+                                  <button
+                                    type="button"
                                     key={field.name}
+                                    onClick={() => openEditFieldModal(type, field)}
                                     className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600"
                                     title={`${field.name} (${field.type})`}
                                   >
                                     {field.name}
-                                  </span>
+                                  </button>
                                 ))}
 
-                              {fieldsList.length > 3 && (
-                                <span className="self-center text-[10px] text-slate-400">
-                                  +{fieldsList.length - 3}{' '}
-                                  more
-                                </span>
-                              )}
                             </div>
                           )}
                         </div>
@@ -483,7 +564,6 @@ export function ContentTypesPage() {
                       <td className="whitespace-nowrap px-4 py-4 text-xs text-slate-500">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="h-3.5 w-3.5 text-slate-400" />
-
                           {formatDate(type.created_at)}
                         </div>
                       </td>
@@ -513,13 +593,11 @@ export function ContentTypesPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            title="Configure Fields (T-CTB-05)"
+                            title="Configure Fields"
                             className="h-8 px-2.5 text-slate-600 hover:text-indigo-600"
-                            onClick={() => {
-                              alert(
-                                `Configure fields for "${type.name}" will be implemented in task T-CTB-05.`,
-                              );
-                            }}
+                            onClick={() =>
+                              openFieldModal(type)
+                            }
                           >
                             <Sliders className="mr-1 h-3.5 w-3.5" />
                             Fields
@@ -572,6 +650,15 @@ export function ContentTypesPage() {
         contentType={selectedContentType}
         onClose={closeModal}
         onSuccess={refetch}
+      />
+
+      {/* Add / Edit Field Modal */}
+      <FieldModal
+        isOpen={isFieldModalOpen}
+        field={editingField}
+        onClose={closeFieldModal}
+        onSave={saveField}
+        onRemove={removeField}
       />
     </div>
   );
