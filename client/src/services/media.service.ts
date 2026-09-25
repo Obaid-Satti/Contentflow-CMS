@@ -63,15 +63,52 @@ export async function fetchMedia(): Promise<MediaAsset[]> {
 }
 
 export async function uploadMedia(file: File): Promise<MediaAsset> {
+  const signatureResponse = await axios.post<{
+    cloud_name: string;
+    api_key: string;
+    timestamp: number;
+    public_id: string;
+    allowed_formats: string;
+    signature: string;
+    resource_type: 'image' | 'raw';
+  }>(`${API_BASE_URL}/media/upload-signature`, {
+    file_name: file.name,
+    mime: file.type,
+    size_bytes: file.size,
+  }, { headers: authHeaders() });
+  const signedUpload = signatureResponse.data;
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('api_key', signedUpload.api_key);
+  formData.append('timestamp', String(signedUpload.timestamp));
+  formData.append('public_id', signedUpload.public_id);
+  formData.append('allowed_formats', signedUpload.allowed_formats);
+  formData.append('signature', signedUpload.signature);
 
-  const response = await axios.post<MediaAsset>(
-    `${API_BASE_URL}/media`,
-    formData,
+  let cloudinaryResponse: { secure_url: string };
+  try {
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${encodeURIComponent(signedUpload.cloud_name)}/${signedUpload.resource_type}/upload`,
+      { method: 'POST', body: formData },
+    );
+    const responseBody = await response.json() as typeof cloudinaryResponse & { error?: { message?: string } };
+    if (!response.ok) {
+      throw new Error(responseBody.error?.message ?? 'Cloudinary could not upload this file. Please try again.');
+    }
+    cloudinaryResponse = responseBody;
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : 'Cloudinary could not upload this file. Please try again.',
+      { cause: error },
+    );
+  }
+
+  const registeredResponse = await axios.post<MediaAsset>(
+    `${API_BASE_URL}/media/register-upload`,
+    { file_name: file.name, secure_url: cloudinaryResponse.secure_url },
     { headers: authHeaders() },
   );
-  return response.data;
+  return registeredResponse.data;
 }
 
 export async function updateMediaAltText(id: number, altText: string): Promise<MediaAsset> {

@@ -1,8 +1,14 @@
-import { readFile, rename, unlink } from 'node:fs/promises';
-import path from 'node:path';
-import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+import {
+    createCloudinaryUploadSignature,
+    deleteCloudinaryAsset,
+    getCloudinaryAsset,
+    getCloudinaryMimeType,
+    getExpectedMediaType,
+    MAX_MEDIA_SIZE_BYTES,
+    parseCloudinaryAssetUrl,
+} from '../services/cloudinary.service.js';
 import {
     createMedia,
     deleteMediaById,
@@ -10,10 +16,6 @@ import {
     listMedia,
     updateMediaAltText,
 } from '../models/media.model.js';
-import {
-    ALLOWED_MEDIA_TYPES_MESSAGE,
-    getUploadDirectory,
-} from '../middleware/media-upload.middleware.js';
 
 function parseMediaId(value: string | string[] | undefined): number | null {
     if (typeof value !== 'string') return null;
@@ -21,8 +23,9 @@ function parseMediaId(value: string | string[] | undefined): number | null {
     return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-function getPublicMediaUrl(req: Request, storedPath: string): string {
-    const normalizedPath = storedPath.replaceAll('\\', '/');
+function getPublicMediaUrl(req: Request, media: { stored_path: string }): string {
+    if (/^https?:\/\//i.test(media.stored_path)) return media.stored_path;
+    const normalizedPath = media.stored_path.replaceAll('\\', '/');
     const host = req.get('host');
     return host
         ? `${req.protocol}://${host}/${normalizedPath}`
@@ -39,7 +42,7 @@ export async function listMediaController(req: Request, res: Response) {
         return res.json({
             media: media.map((item) => ({
                 ...item,
-                url: getPublicMediaUrl(req, item.stored_path),
+                url: getPublicMediaUrl(req, item),
             })),
         });
     } catch (error) {
@@ -48,59 +51,77 @@ export async function listMediaController(req: Request, res: Response) {
     }
 }
 
-function matchesFileSignature(mime: string, bytes: Buffer): boolean {
-    switch (mime) {
-        case 'image/jpeg':
-            return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-        case 'image/png':
-            return bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-        case 'image/webp':
-            return bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' &&
-                bytes.toString('ascii', 8, 12) === 'WEBP';
-        case 'image/gif':
-            return ['GIF87a', 'GIF89a'].includes(bytes.toString('ascii', 0, 6));
-        case 'application/pdf':
-            return bytes.toString('ascii', 0, 5) === '%PDF-';
-        default:
-            return false;
-    }
-}
+const uploadSignatureSchema = z.object({
+    file_name: z.string().trim().min(1).max(255),
+    mime: z.string().trim().min(1),
+    size_bytes: z.number().int().positive().max(MAX_MEDIA_SIZE_BYTES),
+}).strict();
 
-function getSafeOriginalFileName(originalName: string): string {
-    const normalized = originalName.replaceAll('\\', '/');
-    return normalized.split('/').pop() || 'upload';
-}
-
-export async function uploadMediaController(req: Request, res: Response) {
-    if (!req.file) {
-        return res.status(400).json({ message: 'Choose a file to upload.' });
+export function createMediaUploadSignatureController(req: Request, res: Response) {
+    const parsed = uploadSignatureSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({
+            message: parsed.error.issues[0]?.message ?? 'Choose a supported file up to 5 MB.',
+        });
     }
 
     try {
-        const fileBytes = await readFile(req.file.path);
-        if (!matchesFileSignature(req.file.mimetype, fileBytes)) {
-            await unlink(req.file.path).catch(() => undefined);
-            return res.status(400).json({
-                message: `Unsupported file type. Allowed types: ${ALLOWED_MEDIA_TYPES_MESSAGE}.`,
+        if (!getExpectedMediaType(parsed.data.file_name) ||
+            getExpectedMediaType(parsed.data.file_name)?.mime !== parsed.data.mime.toLowerCase()) {
+            return res.status(400).json({ message: 'Unsupported file type. Allowed types: JPG, PNG, WebP, GIF, PDF.' });
+        }
+        return res.json(createCloudinaryUploadSignature(parsed.data.file_name, parsed.data.mime));
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not prepare the upload.';
+        const isConfigurationError = message.startsWith('Cloudinary is not configured');
+        return res.status(isConfigurationError ? 503 : 400).json({ message });
+    }
+}
+
+const cloudinaryUploadSchema = z.object({
+    file_name: z.string().trim().min(1).max(255),
+    secure_url: z.string().url(),
+}).strict();
+
+export async function registerCloudinaryMediaController(req: Request, res: Response) {
+    const parsed = cloudinaryUploadSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.issues[0]?.message ?? 'Invalid uploaded media.' });
+    }
+
+    const { file_name, secure_url } = parsed.data;
+    const normalizedName = file_name.replaceAll('\\', '/').split('/').pop() ?? '';
+    const identity = parseCloudinaryAssetUrl(secure_url);
+    if (!identity) return res.status(400).json({ message: 'Invalid Cloudinary file URL.' });
+
+    try {
+        const asset = await getCloudinaryAsset(identity.publicId, identity.resourceType);
+        const mime = getCloudinaryMimeType(String(asset.format ?? ''), String(asset.resource_type ?? ''));
+        const sizeBytes = Number(asset.bytes);
+        const expectedType = getExpectedMediaType(normalizedName);
+        if (!mime || !expectedType || expectedType.mime !== mime || expectedType.resourceType !== identity.resourceType ||
+            asset.resource_type !== identity.resourceType || asset.secure_url !== secure_url ||
+            !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > MAX_MEDIA_SIZE_BYTES) {
+            await deleteCloudinaryAsset(identity.publicId, identity.resourceType).catch(() => undefined);
+            return res.status(sizeBytes > MAX_MEDIA_SIZE_BYTES ? 413 : 400).json({
+                message: sizeBytes > MAX_MEDIA_SIZE_BYTES
+                    ? 'File exceeds the 5 MB upload limit.'
+                    : 'The uploaded file type is not supported.',
             });
         }
 
         const media = await createMedia({
-            file_name: getSafeOriginalFileName(req.file.originalname),
-            stored_path: path.posix.join('uploads', req.file.filename),
-            mime: req.file.mimetype,
-            size_bytes: req.file.size,
+            file_name: normalizedName,
+            stored_path: secure_url,
+            mime,
+            size_bytes: sizeBytes,
             alt_text: '',
         });
-
-        return res.status(201).json({
-            ...media,
-            url: getPublicMediaUrl(req, media.stored_path),
-        });
+        return res.status(201).json({ ...media, url: media.stored_path });
     } catch (error) {
-        await unlink(req.file.path).catch(() => undefined);
-        console.error('UPLOAD MEDIA ERROR:', error);
-        return res.status(500).json({ message: 'Failed to save uploaded file details.' });
+        await deleteCloudinaryAsset(identity.publicId, identity.resourceType).catch(() => undefined);
+        console.error('REGISTER CLOUDINARY MEDIA ERROR:', error);
+        return res.status(500).json({ message: 'Could not finish saving the uploaded file.' });
     }
 }
 
@@ -127,7 +148,7 @@ export async function updateMediaAltTextController(req: Request, res: Response) 
 
         return res.json({
             ...updated,
-            url: getPublicMediaUrl(req, updated.stored_path),
+            url: getPublicMediaUrl(req, updated),
         });
     } catch (error) {
         console.error('UPDATE MEDIA ALT TEXT ERROR:', error);
@@ -145,47 +166,21 @@ export async function deleteMediaController(req: Request, res: Response) {
         const media = await getMediaById(id);
         if (!media) return res.status(404).json({ message: 'Media file not found.' });
 
-        const normalizedStoredPath = media.stored_path.replaceAll('\\', '/');
-        const fileName = path.posix.basename(normalizedStoredPath);
-        if (normalizedStoredPath !== `uploads/${fileName}` || fileName === '.' || fileName === '/') {
-            console.error('DELETE MEDIA ERROR: Invalid stored media path.', { id });
-            return res.status(500).json({ message: 'Media file has an invalid storage path.' });
+        const identity = parseCloudinaryAssetUrl(media.stored_path);
+        if (identity) {
+            const cloudDelete = await deleteCloudinaryAsset(identity.publicId, identity.resourceType);
+            if (cloudDelete.result !== 'ok' && cloudDelete.result !== 'not found') {
+                return res.status(502).json({ message: 'Cloudinary could not delete this file.' });
+            }
+            const deleted = await deleteMediaById(id);
+            if (!deleted) return res.status(404).json({ message: 'Media file not found.' });
+            return res.json({ message: 'Media file deleted.', id });
         }
 
-        const uploadDirectory = getUploadDirectory();
-        const filePath = path.resolve(uploadDirectory, fileName);
-        if (path.dirname(filePath) !== uploadDirectory) {
-            return res.status(500).json({ message: 'Media file has an invalid storage path.' });
-        }
-
-        const stagedPath = path.join(uploadDirectory, `.${fileName}.deleting-${randomUUID()}`);
-        let fileWasStaged = false;
-        try {
-            await rename(filePath, stagedPath);
-            fileWasStaged = true;
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-        }
-
-        let deleted: Awaited<ReturnType<typeof deleteMediaById>>;
-        try {
-            deleted = await deleteMediaById(id);
-        } catch (error) {
-            if (fileWasStaged) await rename(stagedPath, filePath).catch(() => undefined);
-            throw error;
-        }
-
+        const deleted = await deleteMediaById(id);
         if (!deleted) {
-            if (fileWasStaged) await rename(stagedPath, filePath).catch(() => undefined);
             return res.status(404).json({ message: 'Media file not found.' });
         }
-
-        if (fileWasStaged) {
-            await unlink(stagedPath).catch((error: NodeJS.ErrnoException) => {
-                console.error('DELETE MEDIA FILE CLEANUP ERROR:', error);
-            });
-        }
-
         return res.json({ message: 'Media file deleted.', id });
     } catch (error) {
         console.error('DELETE MEDIA ERROR:', error);

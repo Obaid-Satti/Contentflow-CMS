@@ -5,7 +5,6 @@ import adminRoutes from './routes/admin.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import contentTypeRoutes from './routes/content-type.routes.js';
 import mediaRoutes from './routes/media.routes.js';
-import { getUploadDirectory } from './middleware/media-upload.middleware.js';
 const app = express();
 
 const allowedOrigin = process.env.FRONTEND_URL;
@@ -17,7 +16,6 @@ app.use(
 );
 
 app.use(express.json());
-app.use('/uploads', express.static(getUploadDirectory(), { dotfiles: 'deny', index: false }));
 
 // Swagger documentation (served via CDN for zero-dependency Vercel compatibility)
 const SWAGGER_VERSION = '5.18.2';
