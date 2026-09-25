@@ -8,6 +8,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ContentTypesPage } from '@/pages/content-types/ContentTypesPage';
 import { ContentManagerPage } from '@/pages/content-manager/ContentManagerPage';
 import { MediaLibraryPage } from '@/pages/media-library/MediaLibraryPage';
+import { SettingsPage } from '@/pages/settings/SettingsPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 
@@ -41,13 +42,15 @@ function App() {
               element={<ContentTypesPage />}
             />
             <Route path="/media-library" element={<MediaLibraryPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
 
             {navigationItems
               .filter(
                 (page) =>
                   page.path !== '/content-manager' &&
                   page.path !== '/content-types' &&
-                  page.path !== '/media-library',
+                  page.path !== '/media-library' &&
+                  page.path !== '/settings',
               )
               .map((page) => (
                 <Route
