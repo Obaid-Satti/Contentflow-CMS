@@ -10,6 +10,9 @@ node_modules/
 # Build output
 dist/
 
+# Uploaded files are stored locally and must not be committed.
+uploads/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
