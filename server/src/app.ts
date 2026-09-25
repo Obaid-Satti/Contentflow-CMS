@@ -6,6 +6,7 @@ import apiTokenRoutes from './routes/api-token.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import contentTypeRoutes from './routes/content-type.routes.js';
 import mediaRoutes from './routes/media.routes.js';
+import publicContentRoutes from './routes/public-content.routes.js';
 const app = express();
 
 const allowedOrigins = new Set(
@@ -106,5 +107,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/api-tokens', apiTokenRoutes);
 app.use('/api/content-types', contentTypeRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api', publicContentRoutes);
 
 export default app;

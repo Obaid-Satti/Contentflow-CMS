@@ -28,6 +28,11 @@ export async function getMediaById(id: number): Promise<MediaRecord | undefined>
     return db<MediaRecord>('media').where({ id }).first();
 }
 
+export async function getMediaByStoredPaths(paths: string[]): Promise<MediaRecord[]> {
+    if (paths.length === 0) return [];
+    return db<MediaRecord>('media').whereIn('stored_path', [...new Set(paths)]);
+}
+
 export async function updateMediaAltText(
     id: number,
     altText: string,
