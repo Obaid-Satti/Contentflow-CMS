@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { swaggerSpec } from './config/swagger.js';
 import adminRoutes from './routes/admin.routes.js';
+import apiTokenRoutes from './routes/api-token.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import contentTypeRoutes from './routes/content-type.routes.js';
 import mediaRoutes from './routes/media.routes.js';
@@ -102,6 +103,7 @@ app.get(['/api-docs/swagger-ui.css', '/swagger-ui.css'], (_req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/api-tokens', apiTokenRoutes);
 app.use('/api/content-types', contentTypeRoutes);
 app.use('/api/media', mediaRoutes);
 
