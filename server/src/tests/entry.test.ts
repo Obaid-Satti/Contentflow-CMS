@@ -263,10 +263,18 @@ describe('Content Entry server validation', () => {
 
 describe('Content Entry list query behavior', () => {
     it('paginates 30 entries and sorts globally across page boundaries', async () => {
+        const createdIds: number[] = [];
         for (let index = 1; index <= 30; index += 1) {
-            await createEntry({
+            const response = await createEntry({
                 title: `Item ${String(index).padStart(2, '0')}`,
                 quantity: index,
+            });
+            createdIds.push(response.body.id as number);
+        }
+
+        for (const [index, id] of createdIds.entries()) {
+            await db('entries').where({ id }).update({
+                updated_at: new Date(Date.UTC(2026, 0, 1, 0, index)),
             });
         }
 
@@ -297,6 +305,22 @@ describe('Content Entry list query behavior', () => {
         const largerPage = await auth(
             request(app).get(entriesUrl()).query({ page: 1, pageSize: 25 }),
         );
+        const latestUpdatedFirstPage = await auth(
+            request(app).get(entriesUrl()).query({
+                page: 1,
+                pageSize: 10,
+                sortBy: 'updated_at',
+                sortOrder: 'desc',
+            }),
+        );
+        const latestUpdatedLastPage = await auth(
+            request(app).get(entriesUrl()).query({
+                page: 3,
+                pageSize: 10,
+                sortBy: 'updated_at',
+                sortOrder: 'desc',
+            }),
+        );
 
         expect(firstPage.body.pagination).toMatchObject({ total: 30, totalPages: 3 });
         expect(firstPage.body.entries.map((entry: { data: { title: string } }) => entry.data.title))
@@ -307,6 +331,10 @@ describe('Content Entry list query behavior', () => {
             .toEqual(Array.from({ length: 10 }, (_, index) => index + 1));
         expect(largerPage.body.entries).toHaveLength(25);
         expect(largerPage.body.pagination.totalPages).toBe(2);
+        expect(latestUpdatedFirstPage.body.entries.map((entry: { id: number }) => entry.id))
+            .toEqual(createdIds.slice(-10).reverse());
+        expect(latestUpdatedLastPage.body.entries.map((entry: { id: number }) => entry.id))
+            .toEqual(createdIds.slice(0, 10).reverse());
     });
 
     it('rejects unsupported page sizes and sort fields', async () => {
@@ -333,5 +361,37 @@ describe('Content Entry list query behavior', () => {
         expect(response.status).toBe(200);
         expect(response.body.pagination.total).toBe(2);
         expect(response.body.entries).toHaveLength(2);
+    });
+
+    it('counts filtered search results before applying pagination', async () => {
+        for (let index = 1; index <= 12; index += 1) {
+            await createEntry({
+                title: `Matching guide ${String(index).padStart(2, '0')}`,
+                quantity: index,
+            });
+        }
+        for (let index = 1; index <= 3; index += 1) {
+            await createEntry({ title: `Other item ${index}`, quantity: index + 12 });
+        }
+
+        const response = await auth(
+            request(app).get(entriesUrl()).query({
+                page: 2,
+                pageSize: 10,
+                search: 'matching guide',
+            }),
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.pagination).toMatchObject({
+            page: 2,
+            pageSize: 10,
+            total: 12,
+            totalPages: 2,
+        });
+        expect(response.body.entries).toHaveLength(2);
+        expect(response.body.entries.every((entry: { data: { title: string } }) =>
+            entry.data.title.toLowerCase().includes('matching guide'),
+        )).toBe(true);
     });
 });
