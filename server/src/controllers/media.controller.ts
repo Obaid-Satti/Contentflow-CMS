@@ -58,6 +58,10 @@ const uploadSignatureSchema = z.object({
 }).strict();
 
 export function createMediaUploadSignatureController(req: Request, res: Response) {
+    if (typeof req.body?.size_bytes === 'number' && req.body.size_bytes > MAX_MEDIA_SIZE_BYTES) {
+        return res.status(413).json({ message: 'File exceeds the 5 MB upload limit.' });
+    }
+
     const parsed = uploadSignatureSchema.safeParse(req.body);
     if (!parsed.success) {
         return res.status(400).json({
