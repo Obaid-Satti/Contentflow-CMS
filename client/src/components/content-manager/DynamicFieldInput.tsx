@@ -132,9 +132,9 @@ function MediaFieldInput({
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const mediaQuery = useQuery({ queryKey: ['media'], queryFn: fetchMedia });
   const selectedMedia = mediaQuery.data?.find((media) => media.stored_path === value);
-  const previewUrl = value ? getMediaFileUrl(value) : null;
-  const isImage = previewUrl && /\.(jpe?g|png|webp|gif)(?:$|\?)/i.test(value);
-  const isPdf = /\.pdf(?:$|\?)/i.test(value);
+  const previewUrl = selectedMedia?.url ?? (value ? getMediaFileUrl(value) : null);
+  const isImage = selectedMedia?.mime.startsWith('image/') ?? Boolean(previewUrl && /\.(jpe?g|png|webp|gif)(?:$|\?)/i.test(value));
+  const isPdf = selectedMedia?.mime === 'application/pdf' || /\.pdf(?:$|\?)/i.test(value);
   const Icon = isPdf ? FileText : isImage ? Image : FileImage;
 
   return (

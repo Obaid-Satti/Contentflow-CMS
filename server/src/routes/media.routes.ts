@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import {
     deleteMediaController,
+    createMediaUploadSignatureController,
     listMediaController,
+    registerCloudinaryMediaController,
     updateMediaAltTextController,
-    uploadMediaController,
 } from '../controllers/media.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
-import { mediaUploadMiddleware } from '../middleware/media-upload.middleware.js';
 
 const router = Router();
 
@@ -28,36 +28,8 @@ router.use(authMiddleware);
  */
 router.get('/', listMediaController);
 
-/**
- * @swagger
- * /api/media:
- *   post:
- *     summary: Upload a media file
- *     tags: [Media]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required: [file]
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *     responses:
- *       201:
- *         description: File uploaded and media metadata stored
- *       400:
- *         description: Missing file or unsupported file type
- *       413:
- *         description: File exceeds the 5 MB limit
- *       401:
- *         description: Unauthorized
- */
-router.post('/', mediaUploadMiddleware, uploadMediaController);
+router.post('/upload-signature', createMediaUploadSignatureController);
+router.post('/register-upload', registerCloudinaryMediaController);
 
 /**
  * @swagger

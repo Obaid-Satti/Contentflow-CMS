@@ -16,6 +16,7 @@ function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError<{ message?: string }>(error)) {
     return error.response?.data?.message ?? 'The request failed. Please try again.';
   }
+  if (error instanceof Error) return error.message;
   return 'Something went wrong. Please try again.';
 }
 
