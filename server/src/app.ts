@@ -7,11 +7,19 @@ import contentTypeRoutes from './routes/content-type.routes.js';
 import mediaRoutes from './routes/media.routes.js';
 const app = express();
 
-const allowedOrigin = process.env.FRONTEND_URL;
+const allowedOrigins = new Set(
+    [process.env.FRONTEND_URL, ...(process.env.FRONTEND_URLS ?? '').split(',')]
+        .map((origin) => origin?.trim())
+        .filter((origin): origin is string => Boolean(origin)),
+);
+const isContentFlowVercelPreview = (origin: string) =>
+    /^https:\/\/contentflow-cms-[a-z0-9-]+\.vercel\.app$/i.test(origin);
 
 app.use(
     cors({
-        origin: allowedOrigin,
+        origin: (origin, callback) => {
+            callback(null, !origin || allowedOrigins.has(origin) || isContentFlowVercelPreview(origin));
+        },
     }),
 );
 
