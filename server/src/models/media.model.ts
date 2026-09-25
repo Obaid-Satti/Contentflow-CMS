@@ -28,6 +28,17 @@ export async function getMediaById(id: number): Promise<MediaRecord | undefined>
     return db<MediaRecord>('media').where({ id }).first();
 }
 
+export async function updateMediaAltText(
+    id: number,
+    altText: string,
+): Promise<MediaRecord | undefined> {
+    const [updated] = await db<MediaRecord>('media')
+        .where({ id })
+        .update({ alt_text: altText })
+        .returning('*');
+    return updated;
+}
+
 export async function deleteMediaById(id: number): Promise<MediaRecord | undefined> {
     return db.transaction(async (trx) => {
         const media = await trx<MediaRecord>('media').where({ id }).first();
