@@ -1,8 +1,46 @@
-import { readFile, unlink } from 'node:fs/promises';
+import { readFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
-import { createMedia } from '../models/media.model.js';
-import { ALLOWED_MEDIA_TYPES_MESSAGE } from '../middleware/media-upload.middleware.js';
+import {
+    createMedia,
+    deleteMediaById,
+    getMediaById,
+    listMedia,
+} from '../models/media.model.js';
+import {
+    ALLOWED_MEDIA_TYPES_MESSAGE,
+    getUploadDirectory,
+} from '../middleware/media-upload.middleware.js';
+
+function parseMediaId(value: string | string[] | undefined): number | null {
+    if (typeof value !== 'string') return null;
+    const id = Number(value);
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+function getPublicMediaUrl(req: Request, storedPath: string): string {
+    const normalizedPath = storedPath.replaceAll('\\', '/');
+    const host = req.get('host');
+    return host
+        ? `${req.protocol}://${host}/${normalizedPath}`
+        : `/${normalizedPath}`;
+}
+
+export async function listMediaController(req: Request, res: Response) {
+    try {
+        const media = await listMedia();
+        return res.json({
+            media: media.map((item) => ({
+                ...item,
+                url: getPublicMediaUrl(req, item.stored_path),
+            })),
+        });
+    } catch (error) {
+        console.error('LIST MEDIA ERROR:', error);
+        return res.status(500).json({ message: 'Failed to list media files.' });
+    }
+}
 
 function matchesFileSignature(mime: string, bytes: Buffer): boolean {
     switch (mime) {
@@ -49,10 +87,71 @@ export async function uploadMediaController(req: Request, res: Response) {
             alt_text: '',
         });
 
-        return res.status(201).json(media);
+        return res.status(201).json({
+            ...media,
+            url: getPublicMediaUrl(req, media.stored_path),
+        });
     } catch (error) {
         await unlink(req.file.path).catch(() => undefined);
         console.error('UPLOAD MEDIA ERROR:', error);
         return res.status(500).json({ message: 'Failed to save uploaded file details.' });
+    }
+}
+
+export async function deleteMediaController(req: Request, res: Response) {
+    const id = parseMediaId(req.params.mediaId);
+    if (id === null) {
+        return res.status(400).json({ message: 'Invalid media ID.' });
+    }
+
+    try {
+        const media = await getMediaById(id);
+        if (!media) return res.status(404).json({ message: 'Media file not found.' });
+
+        const normalizedStoredPath = media.stored_path.replaceAll('\\', '/');
+        const fileName = path.posix.basename(normalizedStoredPath);
+        if (normalizedStoredPath !== `uploads/${fileName}` || fileName === '.' || fileName === '/') {
+            console.error('DELETE MEDIA ERROR: Invalid stored media path.', { id });
+            return res.status(500).json({ message: 'Media file has an invalid storage path.' });
+        }
+
+        const uploadDirectory = getUploadDirectory();
+        const filePath = path.resolve(uploadDirectory, fileName);
+        if (path.dirname(filePath) !== uploadDirectory) {
+            return res.status(500).json({ message: 'Media file has an invalid storage path.' });
+        }
+
+        const stagedPath = path.join(uploadDirectory, `.${fileName}.deleting-${randomUUID()}`);
+        let fileWasStaged = false;
+        try {
+            await rename(filePath, stagedPath);
+            fileWasStaged = true;
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        }
+
+        let deleted: Awaited<ReturnType<typeof deleteMediaById>>;
+        try {
+            deleted = await deleteMediaById(id);
+        } catch (error) {
+            if (fileWasStaged) await rename(stagedPath, filePath).catch(() => undefined);
+            throw error;
+        }
+
+        if (!deleted) {
+            if (fileWasStaged) await rename(stagedPath, filePath).catch(() => undefined);
+            return res.status(404).json({ message: 'Media file not found.' });
+        }
+
+        if (fileWasStaged) {
+            await unlink(stagedPath).catch((error: NodeJS.ErrnoException) => {
+                console.error('DELETE MEDIA FILE CLEANUP ERROR:', error);
+            });
+        }
+
+        return res.json({ message: 'Media file deleted.', id });
+    } catch (error) {
+        console.error('DELETE MEDIA ERROR:', error);
+        return res.status(500).json({ message: 'Failed to delete media file.' });
     }
 }
