@@ -57,7 +57,7 @@ export function ContentTypesPage() {
       if (!contentTypeToDelete) return 0;
       const result = await fetchEntries(contentTypeToDelete.id, {
         page: 1,
-        pageSize: 1,
+        pageSize: 10,
         sortBy: 'updated_at',
         sortOrder: 'desc',
       });
