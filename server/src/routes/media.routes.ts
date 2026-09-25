@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
     deleteMediaController,
     listMediaController,
+    updateMediaAltTextController,
     uploadMediaController,
 } from '../controllers/media.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
@@ -57,6 +58,41 @@ router.get('/', listMediaController);
  *         description: Unauthorized
  */
 router.post('/', mediaUploadMiddleware, uploadMediaController);
+
+/**
+ * @swagger
+ * /api/media/{mediaId}/alt-text:
+ *   patch:
+ *     summary: Update an image's alt text
+ *     tags: [Media]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: mediaId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [alt_text]
+ *             properties:
+ *               alt_text:
+ *                 type: string
+ *                 maxLength: 1000
+ *     responses:
+ *       200:
+ *         description: Image alt text updated
+ *       400:
+ *         description: Invalid alt text or media is not an image
+ *       404:
+ *         description: Media file not found
+ */
+router.patch('/:mediaId/alt-text', updateMediaAltTextController);
 
 /**
  * @swagger

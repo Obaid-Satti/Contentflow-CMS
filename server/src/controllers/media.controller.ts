@@ -2,11 +2,13 @@ import { readFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import {
     createMedia,
     deleteMediaById,
     getMediaById,
     listMedia,
+    updateMediaAltText,
 } from '../models/media.model.js';
 import {
     ALLOWED_MEDIA_TYPES_MESSAGE,
@@ -26,6 +28,10 @@ function getPublicMediaUrl(req: Request, storedPath: string): string {
         ? `${req.protocol}://${host}/${normalizedPath}`
         : `/${normalizedPath}`;
 }
+
+const mediaAltTextSchema = z.object({
+    alt_text: z.string().trim().max(1000, 'Alt text must be 1000 characters or fewer.'),
+}).strict();
 
 export async function listMediaController(req: Request, res: Response) {
     try {
@@ -95,6 +101,37 @@ export async function uploadMediaController(req: Request, res: Response) {
         await unlink(req.file.path).catch(() => undefined);
         console.error('UPLOAD MEDIA ERROR:', error);
         return res.status(500).json({ message: 'Failed to save uploaded file details.' });
+    }
+}
+
+export async function updateMediaAltTextController(req: Request, res: Response) {
+    const id = parseMediaId(req.params.mediaId);
+    if (id === null) return res.status(400).json({ message: 'Invalid media ID.' });
+
+    const parsed = mediaAltTextSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({
+            message: parsed.error.issues[0]?.message ?? 'Invalid alt text.',
+        });
+    }
+
+    try {
+        const media = await getMediaById(id);
+        if (!media) return res.status(404).json({ message: 'Media file not found.' });
+        if (!media.mime.startsWith('image/')) {
+            return res.status(400).json({ message: 'Alt text can only be set for images.' });
+        }
+
+        const updated = await updateMediaAltText(id, parsed.data.alt_text);
+        if (!updated) return res.status(404).json({ message: 'Media file not found.' });
+
+        return res.json({
+            ...updated,
+            url: getPublicMediaUrl(req, updated.stored_path),
+        });
+    } catch (error) {
+        console.error('UPDATE MEDIA ALT TEXT ERROR:', error);
+        return res.status(500).json({ message: 'Failed to update image alt text.' });
     }
 }
 
