@@ -20,6 +20,8 @@ export async function createApiToken(
     return token as ApiTokenSummary;
 }
 
+
+
 export async function listApiTokens(): Promise<ApiTokenSummary[]> {
     return db<ApiTokenSummary>('api_tokens')
         .select('id', 'name', 'created_at', 'last_used_at')
