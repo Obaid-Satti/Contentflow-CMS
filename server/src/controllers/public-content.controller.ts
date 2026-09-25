@@ -4,6 +4,7 @@ import { getContentTypeByApiId } from '../models/content-type.model.js';
 import { getEntries, getEntry } from '../models/entry.model.js';
 import { getMediaByStoredPaths, type MediaRecord } from '../models/media.model.js';
 import type { EntryFieldDefinition } from '../schemas/entry.schema.js';
+import { parsePublicEntryQuery, PublicQueryError } from '../services/public-query.service.js';
 
 type EntryData = Record<string, unknown>;
 
@@ -90,11 +91,13 @@ export async function listPublicEntriesController(req: Request, res: Response) {
         if (!contentType) return res.status(404).json({ message: 'Content type not found.' });
 
         const fields = parseFields(contentType.fields);
+        const query = parsePublicEntryQuery(req.originalUrl, fields);
         const result = await getEntries(contentType.id, {
-            page: 1,
-            pageSize: 10,
-            sortBy: 'updated_at',
-            sortOrder: 'desc',
+            page: query.page,
+            pageSize: query.pageSize,
+            sortBy: query.sortBy,
+            sortOrder: query.sortOrder,
+            filters: query.filters,
             searchableFields: [],
             sortableFields: fields.map((field) => ({ name: field.name, type: field.type })),
         });
@@ -104,6 +107,9 @@ export async function listPublicEntriesController(req: Request, res: Response) {
             meta: result.pagination,
         });
     } catch (error) {
+        if (error instanceof PublicQueryError) {
+            return res.status(400).json({ message: error.message });
+        }
         console.error('LIST PUBLIC ENTRIES ERROR:', error);
         return res.status(500).json({ message: 'Failed to get content entries.' });
     }

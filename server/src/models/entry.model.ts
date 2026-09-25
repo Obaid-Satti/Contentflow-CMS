@@ -8,6 +8,11 @@ export interface EntryListOptions {
     search?: string;
     searchableFields: string[];
     sortableFields: Array<{ name: string; type: string }>;
+    filters?: Array<{
+        field: string;
+        operator: 'equals' | 'contains';
+        value: string;
+    }>;
 }
 
 export async function getEntries(
@@ -25,6 +30,17 @@ export async function getEntries(
                 ]);
             }
         });
+    }
+
+    for (const filter of options.filters ?? []) {
+        if (filter.operator === 'equals') {
+            query.andWhereRaw('data ->> ? = ?', [filter.field, filter.value]);
+        } else {
+            query.andWhereRaw('position(lower(?) in lower(data ->> ?)) > 0', [
+                filter.value,
+                filter.field,
+            ]);
+        }
     }
 
     const countResult = await query.clone().count<{ count: string }[]>('* as count').first();
