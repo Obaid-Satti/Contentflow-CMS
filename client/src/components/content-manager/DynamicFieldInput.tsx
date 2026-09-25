@@ -1,4 +1,10 @@
-import type { ChangeEvent, ReactNode } from 'react';
+import { useState, type ChangeEvent, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { FileImage, FileText, Image, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { MediaPickerModal } from '@/components/media/MediaPickerModal';
+import { fetchMedia, getMediaFileUrl } from '@/services/media.service';
+import type { MediaAsset } from '@/services/media.service';
 import type { ContentTypeField, FieldType } from '@/types/content-type';
 
 export type DynamicFieldValue = string | boolean;
@@ -82,15 +88,7 @@ function renderFieldInput(
       );
     case 'media':
       return (
-        <input
-          id={id}
-          className={fieldClass}
-          type="file"
-          required={required && !value}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? `${id}-error` : undefined}
-          onChange={(event) => onChange(event.target.files?.[0]?.name ?? '')}
-        />
+        <MediaFieldInput id={id} value={String(value)} required={required} error={error} onChange={onChange} />
       );
     case 'short_text':
     case 'number':
@@ -118,6 +116,44 @@ function renderFieldInput(
   }
 }
 
+function MediaFieldInput({
+  id,
+  value,
+  required,
+  error,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  required: boolean;
+  error?: string;
+  onChange: DynamicFieldInputProps['onChange'];
+}) {
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const mediaQuery = useQuery({ queryKey: ['media'], queryFn: fetchMedia });
+  const selectedMedia = mediaQuery.data?.find((media) => media.stored_path === value);
+  const previewUrl = value ? getMediaFileUrl(value) : null;
+  const isImage = previewUrl && /\.(jpe?g|png|webp|gif)(?:$|\?)/i.test(value);
+  const isPdf = /\.pdf(?:$|\?)/i.test(value);
+  const Icon = isPdf ? FileText : isImage ? Image : FileImage;
+
+  return (
+    <>
+      <div id={id} className={`mt-1 rounded-lg border p-3 ${error ? 'border-rose-500' : 'border-slate-300'}`} aria-invalid={Boolean(error)} aria-required={required}>
+        {value ? (
+          <div className="flex items-center gap-3">
+            {previewUrl && isImage ? <img src={previewUrl} alt="Selected media preview" className="h-14 w-14 rounded-md object-cover" /> : <div className="flex h-14 w-14 items-center justify-center rounded-md bg-slate-100 text-indigo-500"><Icon className="h-7 w-7" /></div>}
+            <p className="min-w-0 flex-1 truncate text-sm text-slate-700" title={selectedMedia?.file_name ?? value}>{selectedMedia?.file_name ?? value.split(/[\\/]/).pop()}</p>
+            <Button type="button" variant="ghost" size="sm" aria-label="Remove selected media" onClick={() => onChange('')}><X className="h-4 w-4" /></Button>
+          </div>
+        ) : <p className="text-sm text-slate-500">No media selected{required ? ' (required)' : ''}.</p>}
+        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => setIsPickerOpen(true)}>{value ? 'Change media' : 'Choose media'}</Button>
+      </div>
+      {isPickerOpen && <MediaPickerModal onClose={() => setIsPickerOpen(false)} onSelect={(media: MediaAsset) => { onChange(media.stored_path); setIsPickerOpen(false); }} />}
+    </>
+  );
+}
+
 export function DynamicFieldInput({ field, value, error, onChange }: DynamicFieldInputProps) {
   const id = `entry-${field.name}`;
   const errorId = `${id}-error`;
@@ -129,12 +165,6 @@ export function DynamicFieldInput({ field, value, error, onChange }: DynamicFiel
       </label>
       {renderFieldInput(field, value, onChange, error)}
       {error && <p id={errorId} role="alert" className="mt-1 text-sm text-rose-600">{error}</p>}
-      {field.type === 'media' && (
-        <p className="mt-1 text-xs text-slate-400">
-          {typeof value === 'string' && value ? `Selected file: ${value}. ` : ''}
-          File selection is shown here; upload and storage belong to the Media Library task.
-        </p>
-      )}
       {field.unique && <p className="mt-1 text-xs text-slate-400">This value must be unique.</p>}
     </div>
   );

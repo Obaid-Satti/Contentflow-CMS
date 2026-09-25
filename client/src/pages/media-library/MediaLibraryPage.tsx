@@ -22,12 +22,10 @@ import {
   fetchMedia,
   updateMediaAltText,
   uploadMedia,
+  validateMediaUpload,
 } from '@/services/media.service';
 import type { MediaAsset } from '@/services/media.service';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf']);
-const VIDEO_EXTENSIONS = new Set(['.3gp', '.avi', '.flv', '.m4v', '.mkv', '.mov', '.mp4', '.mpeg', '.mpg', '.webm', '.wmv']);
 const ALLOWED_TYPES_MESSAGE = 'JPG, PNG, WebP, GIF, and PDF';
 
 type ToastMessage = { type: 'success' | 'error'; message: string };
@@ -37,23 +35,6 @@ function getErrorMessage(error: unknown): string {
     return error.response?.data?.message ?? 'The request failed. Please try again.';
   }
   return 'Something went wrong. Please try again.';
-}
-
-function validateFile(file: File): string | null {
-  const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-  if (file.type.toLowerCase().startsWith('video/') || VIDEO_EXTENSIONS.has(extension)) {
-    return 'Video files aren’t supported.';
-  }
-
-  if (file.size > MAX_FILE_SIZE) {
-    return 'Files must be 5 MB or smaller.';
-  }
-
-  if (!ALLOWED_EXTENSIONS.has(extension)) {
-    return `This file type isn’t supported. Allowed types: ${ALLOWED_TYPES_MESSAGE}.`;
-  }
-
-  return null;
 }
 
 function formatFileSize(value: number | string): string {
@@ -187,7 +168,7 @@ export function MediaLibraryPage() {
       const errors: string[] = [];
 
       for (const file of files) {
-        const validationMessage = validateFile(file);
+        const validationMessage = validateMediaUpload(file);
         if (validationMessage) {
           errors.push(validationMessage);
           continue;
