@@ -20,7 +20,15 @@ export async function createApiToken(
     return token as ApiTokenSummary;
 }
 
+export async function findApiTokenByHash(tokenHash: string): Promise<ApiTokenRecord | undefined> {
+    return db<ApiTokenRecord>('api_tokens').where({ token_hash: tokenHash }).first();
+}
 
+export async function recordApiTokenUse(id: number): Promise<boolean> {
+    return (await db('api_tokens')
+        .where({ id })
+        .update({ last_used_at: db.fn.now() })) > 0;
+}
 
 export async function listApiTokens(): Promise<ApiTokenSummary[]> {
     return db<ApiTokenSummary>('api_tokens')

@@ -105,6 +105,12 @@ export async function getContentTypeById(id: number) {
         .first();
 }
 
+export async function getContentTypeByApiId(apiId: string) {
+    return db('content_types')
+        .where({ api_id: apiId })
+        .first();
+}
+
 export async function updateContentType(
     id: number,
     name?: string,
