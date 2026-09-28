@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "lint": "eslint . && tsc --noEmit",
+    "seed": "tsx src/database/seed.ts",
     "migrate": "knex --knexfile knexfile.ts migrate:latest",
     "migrate:rollback": "knex --knexfile knexfile.ts migrate:rollback",
     "migration:create": "knex --knexfile knexfile.ts migrate:make"
