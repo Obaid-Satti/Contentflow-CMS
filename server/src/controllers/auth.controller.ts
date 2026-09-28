@@ -88,7 +88,7 @@ export async function login(req: Request, res: Response) {
             },
             process.env.JWT_SECRET as string,
             {
-                expiresIn: '50S',
+                expiresIn: '24h',
             },
         );
 
