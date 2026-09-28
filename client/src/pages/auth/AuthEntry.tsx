@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import axios from 'axios';
 import { Navigate, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '@/context/useAuth';
+import { fetchRegistrationStatus } from '@/services/auth.service';
 
 export default function AuthEntry() {
     const navigate = useNavigate();
@@ -16,17 +16,8 @@ export default function AuthEntry() {
 
         const checkRegistrationStatus = async () => {
             try {
-                const apiUrl = import.meta.env.VITE_API_URL
-                    ? `${import.meta.env.VITE_API_URL}/auth/status`
-                    : 'http://localhost:5000/api/auth/status';
-
-                const response = await axios.get(apiUrl);
-
-                if (response.data.registrationAvailable) {
-                    navigate('/register', { replace: true });
-                } else {
-                    navigate('/login', { replace: true });
-                }
+                const registrationAvailable = await fetchRegistrationStatus();
+                navigate(registrationAvailable ? '/register' : '/login', { replace: true });
             } catch (error) {
                 console.error('Failed to check registration status:', error);
                 navigate('/login', { replace: true });

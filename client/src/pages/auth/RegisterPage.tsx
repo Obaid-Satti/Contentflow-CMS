@@ -12,6 +12,8 @@ import {
     ShieldCheck,
 } from 'lucide-react';
 
+import { fetchRegistrationStatus } from '@/services/auth.service';
+
 export default function RegisterPage() {
     const navigate = useNavigate();
 
@@ -29,22 +31,18 @@ export default function RegisterPage() {
     useEffect(() => {
         const checkRegistrationStatus = async () => {
             try {
-                const apiUrl = import.meta.env.VITE_API_URL
-                    ? `${import.meta.env.VITE_API_URL}/auth/status`
-                    : 'http://localhost:5000/api/auth/status';
+                const registrationAvailable = await fetchRegistrationStatus();
 
-                const response = await axios.get(apiUrl);
-
-                if (!response.data.registrationAvailable) {
+                if (!registrationAvailable) {
                     navigate('/login', { replace: true });
                     return;
                 }
             } catch (err) {
                 console.error('Failed to check registration status:', err);
                 setError('Unable to check registration status.');
-            } finally {
-                setIsCheckingStatus(false);
             }
+
+            setIsCheckingStatus(false);
         };
 
         checkRegistrationStatus();

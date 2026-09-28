@@ -1,11 +1,34 @@
-import axios from 'axios';
+
+import api from './api';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf']);
-const VIDEO_EXTENSIONS = new Set(['.3gp', '.avi', '.flv', '.m4v', '.mkv', '.mov', '.mp4', '.mpeg', '.mpg', '.webm', '.wmv']);
+
+const ALLOWED_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.gif',
+  '.pdf',
+]);
+
+const VIDEO_EXTENSIONS = new Set([
+  '.3gp',
+  '.avi',
+  '.flv',
+  '.m4v',
+  '.mkv',
+  '.mov',
+  '.mp4',
+  '.mpeg',
+  '.mpg',
+  '.webm',
+  '.wmv',
+]);
+
 const ALLOWED_TYPES_MESSAGE = 'JPG, PNG, WebP, GIF, and PDF';
 
 export interface MediaAsset {
@@ -20,8 +43,14 @@ export interface MediaAsset {
 }
 
 export function validateMediaUpload(file: File): string | null {
-  const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-  if (file.type.toLowerCase().startsWith('video/') || VIDEO_EXTENSIONS.has(extension)) {
+  const extension = file.name
+    .slice(file.name.lastIndexOf('.'))
+    .toLowerCase();
+
+  if (
+    file.type.toLowerCase().startsWith('video/') ||
+    VIDEO_EXTENSIONS.has(extension)
+  ) {
     return 'Video files aren’t supported.';
   }
 
@@ -37,13 +66,24 @@ export function validateMediaUpload(file: File): string | null {
 }
 
 export function getMediaFileUrl(reference: string): string | null {
-  if (/^https?:\/\//i.test(reference)) return reference;
+  if (/^https?:\/\//i.test(reference)) {
+    return reference;
+  }
 
-  const normalizedPath = reference.replaceAll('\\', '/').replace(/^\/+/, '');
-  if (!normalizedPath.startsWith('uploads/')) return null;
+  const normalizedPath = reference
+    .replaceAll('\\', '/')
+    .replace(/^\/+/, '');
+
+  if (!normalizedPath.startsWith('uploads/')) {
+    return null;
+  }
 
   const apiUrl = new URL(API_BASE_URL, window.location.origin);
-  return new URL(`/${normalizedPath}`, apiUrl.origin).toString();
+
+  return new URL(
+    `/${normalizedPath}`,
+    apiUrl.origin,
+  ).toString();
 }
 
 function authHeaders() {
@@ -55,15 +95,20 @@ function authHeaders() {
 }
 
 export async function fetchMedia(): Promise<MediaAsset[]> {
-  const response = await axios.get<{ media: MediaAsset[] }>(
-    `${API_BASE_URL}/media`,
-    { headers: authHeaders() },
+  const response = await api.get<{ media: MediaAsset[] }>(
+    '/media',
+    {
+      headers: authHeaders(),
+    },
   );
+
   return response.data.media;
 }
 
-export async function uploadMedia(file: File): Promise<MediaAsset> {
-  const signatureResponse = await axios.post<{
+export async function uploadMedia(
+  file: File,
+): Promise<MediaAsset> {
+  const signatureResponse = await api.post<{
     cloud_name: string;
     api_key: string;
     timestamp: number;
@@ -71,57 +116,116 @@ export async function uploadMedia(file: File): Promise<MediaAsset> {
     allowed_formats: string;
     signature: string;
     resource_type: 'image' | 'raw';
-  }>(`${API_BASE_URL}/media/upload-signature`, {
-    file_name: file.name,
-    mime: file.type,
-    size_bytes: file.size,
-  }, { headers: authHeaders() });
+  }>(
+    '/media/upload-signature',
+    {
+      file_name: file.name,
+      mime: file.type,
+      size_bytes: file.size,
+    },
+    {
+      headers: authHeaders(),
+    },
+  );
+
   const signedUpload = signatureResponse.data;
+
   const formData = new FormData();
+
   formData.append('file', file);
   formData.append('api_key', signedUpload.api_key);
-  formData.append('timestamp', String(signedUpload.timestamp));
-  formData.append('public_id', signedUpload.public_id);
-  formData.append('allowed_formats', signedUpload.allowed_formats);
-  formData.append('signature', signedUpload.signature);
+  formData.append(
+    'timestamp',
+    String(signedUpload.timestamp),
+  );
+  formData.append(
+    'public_id',
+    signedUpload.public_id,
+  );
+  formData.append(
+    'allowed_formats',
+    signedUpload.allowed_formats,
+  );
+  formData.append(
+    'signature',
+    signedUpload.signature,
+  );
 
   let cloudinaryResponse: { secure_url: string };
+
   try {
     const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${encodeURIComponent(signedUpload.cloud_name)}/${signedUpload.resource_type}/upload`,
-      { method: 'POST', body: formData },
+      `https://api.cloudinary.com/v1_1/${encodeURIComponent(
+        signedUpload.cloud_name,
+      )}/${signedUpload.resource_type}/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      },
     );
-    const responseBody = await response.json() as typeof cloudinaryResponse & { error?: { message?: string } };
+
+    const responseBody =
+      (await response.json()) as typeof cloudinaryResponse & {
+        error?: {
+          message?: string;
+        };
+      };
+
     if (!response.ok) {
-      throw new Error(responseBody.error?.message ?? 'Cloudinary could not upload this file. Please try again.');
+      throw new Error(
+        responseBody.error?.message ??
+        'Cloudinary could not upload this file. Please try again.',
+      );
     }
+
     cloudinaryResponse = responseBody;
   } catch (error) {
     throw new Error(
-      error instanceof Error ? error.message : 'Cloudinary could not upload this file. Please try again.',
-      { cause: error },
+      error instanceof Error
+        ? error.message
+        : 'Cloudinary could not upload this file. Please try again.',
+      {
+        cause: error,
+      },
     );
   }
 
-  const registeredResponse = await axios.post<MediaAsset>(
-    `${API_BASE_URL}/media/register-upload`,
-    { file_name: file.name, secure_url: cloudinaryResponse.secure_url },
-    { headers: authHeaders() },
-  );
+  const registeredResponse =
+    await api.post<MediaAsset>(
+      '/media/register-upload',
+      {
+        file_name: file.name,
+        secure_url: cloudinaryResponse.secure_url,
+      },
+      {
+        headers: authHeaders(),
+      },
+    );
+
   return registeredResponse.data;
 }
 
-export async function updateMediaAltText(id: number, altText: string): Promise<MediaAsset> {
-  const response = await axios.patch<MediaAsset>(
-    `${API_BASE_URL}/media/${id}/alt-text`,
-    { alt_text: altText },
-    { headers: authHeaders() },
+export async function updateMediaAltText(
+  id: number,
+  altText: string,
+): Promise<MediaAsset> {
+  const response = await api.patch<MediaAsset>(
+    `/media/${id}/alt-text`,
+    {
+      alt_text: altText,
+    },
+    {
+      headers: authHeaders(),
+    },
   );
+
   return response.data;
 }
 
-export async function deleteMedia(id: number): Promise<void> {
-  await axios.delete(`${API_BASE_URL}/media/${id}`, {
+export async function deleteMedia(
+  id: number,
+): Promise<void> {
+  await api.delete(`/media/${id}`, {
     headers: authHeaders(),
   });
 }

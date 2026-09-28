@@ -3,12 +3,13 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AdminLayout } from '@/layouts/AdminLayout';
 import { navigationItems } from '@/pages/page-data';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { GuestRoute, ProtectedRoute } from '@/components/ProtectedRoute';
 
 import { ContentTypesPage } from '@/pages/content-types/ContentTypesPage';
 import { ContentManagerPage } from '@/pages/content-manager/ContentManagerPage';
 import { MediaLibraryPage } from '@/pages/media-library/MediaLibraryPage';
 import { SettingsPage } from '@/pages/settings/SettingsPage';
+import AuthEntry from './pages/auth/AuthEntry';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 
@@ -17,14 +18,25 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Public routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-
-        {/* Root route */}
         <Route
-          path="/"
-          element={<Navigate to="/register" replace />}
+          path="/login"
+          element={
+            <GuestRoute>
+              <LoginPage />
+            </GuestRoute>
+          }
         />
+        <Route
+          path="/register"
+          element={
+            <GuestRoute>
+              <RegisterPage />
+            </GuestRoute>
+          }
+        />
+
+        {/* Root route: dashboard, first-admin register, or login */}
+        <Route path="/" element={<AuthEntry />} />
 
         {/* Protected admin routes */}
         <Route element={<ProtectedRoute />}>

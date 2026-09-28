@@ -1,6 +1,5 @@
-import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import api from './api';
 
 export interface ApiTokenSummary {
   id: number;
@@ -15,28 +14,41 @@ interface CreatedApiToken extends ApiTokenSummary {
 
 function authHeaders() {
   const token = localStorage.getItem('contentflow_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+
+  return token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
 }
 
 export async function fetchApiTokens(): Promise<ApiTokenSummary[]> {
-  const response = await axios.get<{ tokens: ApiTokenSummary[] }>(
-    `${API_BASE_URL}/api-tokens`,
-    { headers: authHeaders() },
+  const response = await api.get<{ tokens: ApiTokenSummary[] }>(
+    '/api-tokens',
+    {
+      headers: authHeaders(),
+    },
   );
+
   return response.data.tokens;
 }
 
-export async function createApiToken(name: string): Promise<CreatedApiToken> {
-  const response = await axios.post<CreatedApiToken>(
-    `${API_BASE_URL}/api-tokens`,
+export async function createApiToken(
+  name: string,
+): Promise<CreatedApiToken> {
+  const response = await api.post<CreatedApiToken>(
+    '/api-tokens',
     { name },
-    { headers: authHeaders() },
+    {
+      headers: authHeaders(),
+    },
   );
+
   return response.data;
 }
 
-export async function deleteApiToken(id: number): Promise<void> {
-  await axios.delete(`${API_BASE_URL}/api-tokens/${id}`, {
+export async function deleteApiToken(
+  id: number,
+): Promise<void> {
+  await api.delete(`/api-tokens/${id}`, {
     headers: authHeaders(),
   });
 }

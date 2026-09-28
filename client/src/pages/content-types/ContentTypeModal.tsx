@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -22,35 +22,41 @@ export function ContentTypeModal({
     onClose,
     onSuccess,
 }: ContentTypeModalProps) {
-    const isEditMode = Boolean(contentType);
-
-    const [name, setName] = useState('');
-    const [apiId, setApiId] = useState('');
-    const [apiIdEdited, setApiIdEdited] = useState(false);
-
-    const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (!isOpen) return;
-
-        if (contentType) {
-            setName(contentType.name);
-            setApiId(contentType.api_id);
-            setApiIdEdited(true);
-        } else {
-            setName('');
-            setApiId('');
-            setApiIdEdited(false);
-        }
-
-        setError(null);
-        setIsSaving(false);
-    }, [isOpen, contentType]);
-
     if (!isOpen) {
         return null;
     }
+
+    return (
+        <ContentTypeModalForm
+            key={contentType?.id ?? 'create'}
+            contentType={contentType}
+            onClose={onClose}
+            onSuccess={onSuccess}
+        />
+    );
+}
+
+interface ContentTypeModalFormProps {
+    contentType?: ContentType | null;
+    onClose: () => void;
+    onSuccess: () => void;
+}
+
+function ContentTypeModalForm({
+    contentType,
+    onClose,
+    onSuccess,
+}: ContentTypeModalFormProps) {
+    const isEditMode = Boolean(contentType);
+
+    const [name, setName] = useState(() => contentType?.name ?? '');
+    const [apiId, setApiId] = useState(() => contentType?.api_id ?? '');
+    const [apiIdEdited, setApiIdEdited] = useState(
+        () => Boolean(contentType),
+    );
+
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleNameChange = (value: string) => {
         setName(value);
