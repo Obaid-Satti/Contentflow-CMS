@@ -5,6 +5,7 @@ import { CircleAlert, CircleCheck, Copy, KeyRound, LoaderCircle, Plus, Trash2, X
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/PageHeader';
 import {
   createApiToken,
   deleteApiToken,
@@ -204,21 +205,39 @@ export function SettingsPage() {
   });
 
   return (
-    <section className="mx-auto max-w-5xl space-y-6">
+    <section className="space-y-6">
       {toast && <SettingsToast toast={toast} onClose={() => setToast(null)} />}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Access</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">API Tokens</h1>
-          <p className="mt-1 text-sm text-slate-500">Create tokens for websites and apps that need read-only access to your content.</p>
-        </div>
-        <Button type="button" onClick={() => setIsCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Create token</Button>
-      </div>
+      <PageHeader
+        badge="Access & Security"
+        title="API Tokens"
+        description="Create tokens for websites and apps that need read-only access to your content."
+        icon={KeyRound}
+        stats={
+          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+            {tokensQuery.data?.length ?? 0} {tokensQuery.data?.length === 1 ? 'active token' : 'active tokens'}
+          </span>
+        }
+        actions={
+          <Button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+          >
+            <Plus className="h-4 w-4" />
+            Create token
+          </Button>
+        }
+      />
 
-      <Card className="overflow-hidden bg-white">
-        <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
-          <h2 className="font-semibold text-slate-900">Your API tokens</h2>
-          <p className="mt-1 text-sm text-slate-500">Token values are shown only once when created.</p>
+      <Card className="overflow-hidden border-slate-200/90 bg-white/95 backdrop-blur-xs shadow-xs">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-4 sm:px-6">
+          <div>
+            <h2 className="font-semibold text-slate-900">Your API tokens</h2>
+            <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Token values are shown only once upon creation.</p>
+          </div>
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100/60 px-2.5 py-1 text-xs font-medium text-indigo-700">
+            Bearer Token Auth
+          </span>
         </div>
         {tokensQuery.isLoading ? (
           <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-slate-500"><LoaderCircle className="h-4 w-4 animate-spin" />Loading tokens…</div>
@@ -227,14 +246,30 @@ export function SettingsPage() {
         ) : tokensQuery.data?.length === 0 ? (
           <div className="px-6 py-12 text-center"><KeyRound className="mx-auto h-9 w-9 text-slate-300" /><p className="mt-3 font-medium text-slate-700">No API tokens yet</p><p className="mt-1 text-sm text-slate-500">Create a token before connecting a website or app.</p></div>
         ) : (
-          <ul className="divide-y divide-slate-200">
-            {tokensQuery.data?.map((token) => (
-              <li key={token.id} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                <div className="min-w-0"><p className="font-medium text-slate-900">{token.name}</p><p className="mt-1 text-sm text-slate-500">Created {formatDate(token.created_at)} · Last used {formatDate(token.last_used_at)}</p></div>
-                <Button type="button" variant="outline" size="sm" className="self-start border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 sm:self-auto" onClick={() => setTokenToDelete(token)}><Trash2 className="mr-1.5 h-3.5 w-3.5" />Delete</Button>
-              </li>
-            ))}
-          </ul>
+          <div className="p-4 sm:p-5">
+            <ul className="space-y-3">
+              {tokensQuery.data?.map((token) => (
+                <li
+                  key={token.id}
+                  className="flex flex-col gap-4 rounded-xl border border-slate-200/90 bg-slate-50/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100/60">
+                      <KeyRound className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-slate-900 truncate">{token.name}</p>
+                        <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-100">Read-Only</span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-slate-500">Created {formatDate(token.created_at)} · Last used {formatDate(token.last_used_at)}</p>
+                    </div>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="self-start border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 sm:self-auto shrink-0" onClick={() => setTokenToDelete(token)}><Trash2 className="mr-1.5 h-3.5 w-3.5" />Delete</Button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </Card>
 

@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CircleAlert,
   CircleCheck,
+  FileText,
   Pencil,
   Plus,
   RefreshCw,
@@ -20,6 +21,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { DynamicFieldInput } from '@/components/content-manager/DynamicFieldInput';
 import {
   createEntry,
@@ -446,78 +448,96 @@ export function ContentManagerPage() {
 
     return (
       <section className="mx-auto max-w-3xl space-y-5">
-        {deleteToast && <DeleteToast toast={deleteToast} onClose={() => setDeleteToast(null)} />}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <button type="button" onClick={backToList} className="mb-2 text-sm text-indigo-600 hover:text-indigo-700">← Back to {selectedType.name}</button>
-            <h1 className="text-2xl font-bold text-slate-900">{routeMode === 'create' ? `New ${selectedType.name}` : `Edit ${selectedType.name}`}</h1>
-            <p className="mt-1 text-sm text-slate-500">Fields are generated from this content type’s definition.</p>
-          </div>
+      {deleteToast && <DeleteToast toast={deleteToast} onClose={() => setDeleteToast(null)} />}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 p-5 shadow-xs backdrop-blur-xs sm:p-6">
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-400" />
+        <button type="button" onClick={backToList} className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+          ← Back to {selectedType.name}
+        </button>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+          {routeMode === 'create' ? `New ${selectedType.name}` : `Edit ${selectedType.name}`}
+        </h1>
+        <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+          Fields are generated from this content type’s definition.
+        </p>
+      </div>
+
+      {entry && (
+        <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm sm:grid-cols-2">
+          <p><span className="text-slate-500">Created:</span> <span className="font-medium text-slate-700">{new Date(entry.created_at).toLocaleString()}</span></p>
+          <p><span className="text-slate-500">Updated:</span> <span className="font-medium text-slate-700">{new Date(entry.updated_at).toLocaleString()}</span></p>
         </div>
+      )}
 
-        {entry && (
-          <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm sm:grid-cols-2">
-            <p><span className="text-slate-500">Created:</span> <span className="font-medium text-slate-700">{new Date(entry.created_at).toLocaleString()}</span></p>
-            <p><span className="text-slate-500">Updated:</span> <span className="font-medium text-slate-700">{new Date(entry.updated_at).toLocaleString()}</span></p>
-          </div>
-        )}
+      <form noValidate onSubmit={saveEntry} className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        {selectedType.fields.map((field) => {
+          const value = formValues[field.name] ?? (field.type === 'boolean' ? false : '');
+          return (
+            <DynamicFieldInput
+              key={field.name}
+              field={field}
+              value={value}
+              error={fieldErrors[field.name]}
+              onChange={(nextValue) => {
+                setFormValues((current) => ({ ...current, [field.name]: nextValue }));
+                setFieldErrors((current) => {
+                  if (!(field.name in current)) return current;
+                  const next = { ...current };
+                  delete next[field.name];
+                  return next;
+                });
+                setFormError(null);
+              }}
+            />
+          );
+        })}
 
-        <form noValidate onSubmit={saveEntry} className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          {selectedType.fields.map((field) => {
-            const value = formValues[field.name] ?? (field.type === 'boolean' ? false : '');
-            return (
-              <DynamicFieldInput
-                key={field.name}
-                field={field}
-                value={value}
-                error={fieldErrors[field.name]}
-                onChange={(nextValue) => {
-                  setFormValues((current) => ({ ...current, [field.name]: nextValue }));
-                  setFieldErrors((current) => {
-                    if (!(field.name in current)) return current;
-                    const next = { ...current };
-                    delete next[field.name];
-                    return next;
-                  });
-                  setFormError(null);
-                }}
-              />
-            );
-          })}
+        {formError && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{formError}</div>}
 
-          {formError && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{formError}</div>}
+        <div className="flex justify-end gap-3 border-t pt-5">
+          {routeMode === 'edit' && entry && <Button type="button" variant="outline" className="mr-auto text-rose-600" onClick={() => setEntryToDelete(entry)}><Trash2 className="mr-2 h-4 w-4" />Delete Entry</Button>}
+          <Button type="button" variant="outline" disabled={isSaving} onClick={backToList}>Cancel</Button>
+          <Button type="submit" disabled={isSaving}>{isSaving ? 'Saving…' : routeMode === 'create' ? 'Create Entry' : 'Save Changes'}</Button>
+        </div>
+      </form>
 
-          <div className="flex justify-end gap-3 border-t pt-5">
-            {routeMode === 'edit' && entry && <Button type="button" variant="outline" className="mr-auto text-rose-600" onClick={() => setEntryToDelete(entry)}><Trash2 className="mr-2 h-4 w-4" />Delete Entry</Button>}
-            <Button type="button" variant="outline" disabled={isSaving} onClick={backToList}>Cancel</Button>
-            <Button type="submit" disabled={isSaving}>{isSaving ? 'Saving…' : routeMode === 'create' ? 'Create Entry' : 'Save Changes'}</Button>
-          </div>
-        </form>
-
-        {entryToDelete && (
-          <DeleteEntryDialog
-            entry={entryToDelete}
-            contentTypeName={selectedType.name}
-            isDeleting={isDeleting}
-            onCancel={() => setEntryToDelete(null)}
-            onConfirm={() => void confirmDelete()}
-          />
-        )}
-      </section>
+      {entryToDelete && (
+        <DeleteEntryDialog
+          entry={entryToDelete}
+          contentTypeName={selectedType.name}
+          isDeleting={isDeleting}
+          onCancel={() => setEntryToDelete(null)}
+          onConfirm={() => void confirmDelete()}
+        />
+      )}
+    </section>
     );
   }
 
   return (
-      <section className="space-y-6">
+    <section className="space-y-6">
       {deleteToast && <DeleteToast toast={deleteToast} onClose={() => setDeleteToast(null)} />}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Content Manager</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">{selectedType.name}</h1>
-          <p className="mt-1 text-sm text-slate-500">Manage entries defined by this content type.</p>
-        </div>
-        <Button type="button" onClick={() => navigate(`/content-manager/${selectedType.id}/entries/new`)}><Plus className="mr-2 h-4 w-4" />Create Entry</Button>
-      </div>
+      <PageHeader
+        badge="Content Manager"
+        title={selectedType.name}
+        description="Manage entries defined by this content type."
+        icon={FileText}
+        stats={
+          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+            {entriesQuery.data?.pagination.total ?? 0} {entriesQuery.data?.pagination.total === 1 ? 'entry' : 'entries'}
+          </span>
+        }
+        actions={
+          <Button
+            type="button"
+            onClick={() => navigate(`/content-manager/${selectedType.id}/entries/new`)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+          >
+            <Plus className="h-4 w-4" />
+            Create Entry
+          </Button>
+        }
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <label className="relative max-w-lg flex-1">
@@ -578,7 +598,7 @@ export function ContentManagerPage() {
                       </Button>
                     </div>
                   </td>
-              </tr>
+                </tr>
               ))}
             </tbody>
           </table>

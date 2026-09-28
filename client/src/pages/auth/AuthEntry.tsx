@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '@/context/useAuth';
 import { fetchRegistrationStatus } from '@/services/auth.service';
+import { ContentFlowLogo } from '@/components/ContentFlowLogo';
 
 export default function AuthEntry() {
     const navigate = useNavigate();
@@ -89,20 +90,7 @@ export default function AuthEntry() {
                             </linearGradient>
                         </defs>
                     </svg>
-                    <div className="relative flex items-center justify-center rounded-2xl"
-                        style={{
-                            width: 56, height: 56,
-                            background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-                            boxShadow: '0 0 0 1px rgba(165,120,255,0.3), 0 16px 40px rgba(99,102,241,0.5)',
-                        }}
-                    >
-                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-                            <rect x="3" y="4" width="22" height="4.5" rx="2.25" fill="white" />
-                            <rect x="3" y="11" width="16" height="4.5" rx="2.25" fill="white" fillOpacity="0.65" />
-                            <rect x="3" y="18" width="10" height="4.5" rx="2.25" fill="white" fillOpacity="0.35" />
-                            <path d="M21 11.5 L25 6 L25 17 Z" fill="white" fillOpacity="0.85" />
-                        </svg>
-                    </div>
+                    <ContentFlowLogo size={56} withShadow className="relative" />
                 </div>
 
                 <div className="text-center space-y-2">

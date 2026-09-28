@@ -3,6 +3,7 @@ import { Database, LogOut, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { Button } from '../components/ui/button';
+import { ContentFlowLogo } from '../components/ContentFlowLogo';
 import { cn } from '@/lib/utils';
 import { navigationItems } from '@/pages/page-data';
 import { useAuth } from '@/context/useAuth';
@@ -42,15 +43,7 @@ function SidebarContent() {
         className="flex h-16 items-center gap-3 px-5"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
       >
-        <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
-          style={{
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            boxShadow: '0 4px 12px rgba(99,102,241,0.4)',
-          }}
-        >
-          C
-        </div>
+        <ContentFlowLogo size={36} withShadow />
 
         <div>
           <p className="text-sm font-semibold tracking-tight text-white">
@@ -222,20 +215,20 @@ export function AdminLayout() {
         <SidebarContent />
       </aside>
 
-      {/* Main content */}
-      <div className="min-h-screen lg:ml-64">
-        {/* Header */}
+      {/* Main content with modern ambient background */}
+      <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/20 to-slate-100/50 lg:ml-64">
+        {/* Subtle ambient lighting for rich SaaS aesthetics */}
+        <div className="pointer-events-none absolute -top-24 right-10 h-96 w-96 rounded-full bg-indigo-500/5 blur-3xl" />
+        <div className="pointer-events-none absolute top-1/3 -left-20 h-96 w-96 rounded-full bg-purple-500/5 blur-3xl" />
+
+        {/* Frosted sticky header */}
         <header
-          className="sticky top-0 z-10 flex h-16 items-center justify-between bg-white px-4 md:px-6"
-          style={{
-            borderBottom: '1px solid #e2e8f0',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-          }}
+          className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur-md md:px-6 shadow-xs"
         >
           <div className="flex items-center gap-3">
             {/* Hamburger — mobile only */}
             <button
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 lg:hidden"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white/80 text-slate-600 hover:bg-slate-100 lg:hidden shadow-xs"
               onClick={() => setSidebarOpen(true)}
               aria-label="Open sidebar"
             >
@@ -243,27 +236,42 @@ export function AdminLayout() {
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="h-8 w-1 rounded-full bg-indigo-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100/60">
+                {currentPage?.icon ? (
+                  <currentPage.icon className="h-4 w-4" />
+                ) : (
+                  <div className="h-2 w-2 rounded-full bg-indigo-600" />
+                )}
+              </div>
 
               <div>
                 <p className="text-sm font-semibold leading-tight text-slate-900">
                   {currentPage?.label ?? 'ContentFlow'}
                 </p>
 
-                <p className="mt-0.5 text-xs leading-tight text-slate-400">
+                <p className="mt-0.5 text-xs leading-tight text-slate-400 hidden sm:block">
                   {currentPage?.description ?? 'Administration'}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            {/* Status pill */}
+            {/* <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/80 px-2.5 py-1 text-xs font-medium text-emerald-700">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+              </span>
+              <span>Live CMS</span>
+            </div> */}
+
             <Button
               variant="outline"
               size="sm"
               type="button"
               onClick={logout}
-              className="text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors"
+              className="text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors shadow-xs"
             >
               <LogOut className="h-3.5 w-3.5 sm:mr-1.5" />
 
@@ -274,7 +282,7 @@ export function AdminLayout() {
           </div>
         </header>
 
-        <main className="p-4 md:p-6 lg:p-8">
+        <main className="relative z-10 mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
