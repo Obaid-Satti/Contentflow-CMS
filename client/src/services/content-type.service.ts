@@ -1,9 +1,14 @@
-import axios from 'axios';
-import type { ContentType, ContentTypeField } from '../types/content-type';
-import type { ContentEntry, EntryListResponse } from '../types/content-entry';
+import type {
+  ContentType,
+  ContentTypeField,
+} from '../types/content-type';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import type {
+  ContentEntry,
+  EntryListResponse,
+} from '../types/content-entry';
+
+import api from './api';
 
 function notifyContentTypesChanged() {
   window.dispatchEvent(new Event('content-types-changed'));
@@ -18,8 +23,8 @@ function authHeaders() {
 }
 
 export async function fetchContentTypes(): Promise<ContentType[]> {
-  const response = await axios.get<ContentType[]>(
-    `${API_BASE_URL}/content-types`,
+  const response = await api.get<ContentType[]>(
+    '/content-types',
     {
       headers: authHeaders(),
     },
@@ -33,8 +38,8 @@ export async function createContentType(
   apiId: string,
   fields: ContentTypeField[] = [],
 ): Promise<ContentType> {
-  const response = await axios.post<ContentType>(
-    `${API_BASE_URL}/content-types`,
+  const response = await api.post<ContentType>(
+    '/content-types',
     {
       name,
       apiId,
@@ -46,6 +51,7 @@ export async function createContentType(
   );
 
   notifyContentTypesChanged();
+
   return response.data;
 }
 
@@ -65,8 +71,8 @@ export async function updateContentType(
     defaultValue?: unknown;
   },
 ): Promise<ContentType> {
-  const response = await axios.put<ContentType>(
-    `${API_BASE_URL}/content-types/${id}`,
+  const response = await api.put<ContentType>(
+    `/content-types/${id}`,
     {
       name,
       apiId,
@@ -79,32 +85,52 @@ export async function updateContentType(
   );
 
   notifyContentTypesChanged();
+
   return response.data;
 }
 
-export async function deleteContentType(id: number): Promise<void> {
-  await axios.delete(`${API_BASE_URL}/content-types/${id}`, {
+export async function deleteContentType(
+  id: number,
+): Promise<void> {
+  await api.delete(`/content-types/${id}`, {
     headers: authHeaders(),
   });
+
   notifyContentTypesChanged();
 }
 
 export async function fetchEntries(
   contentTypeId: number,
-  params: { page: number; pageSize: number; sortBy: string; sortOrder: 'asc' | 'desc'; search?: string },
+  params: {
+    page: number;
+    pageSize: number;
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
+    search?: string;
+  },
 ): Promise<EntryListResponse> {
-  const response = await axios.get<EntryListResponse>(
-    `${API_BASE_URL}/content-types/${contentTypeId}/entries`,
-    { headers: authHeaders(), params },
+  const response = await api.get<EntryListResponse>(
+    `/content-types/${contentTypeId}/entries`,
+    {
+      headers: authHeaders(),
+      params,
+    },
   );
+
   return response.data;
 }
 
-export async function fetchEntry(contentTypeId: number, entryId: number): Promise<ContentEntry> {
-  const response = await axios.get<ContentEntry>(
-    `${API_BASE_URL}/content-types/${contentTypeId}/entries/${entryId}`,
-    { headers: authHeaders() },
+export async function fetchEntry(
+  contentTypeId: number,
+  entryId: number,
+): Promise<ContentEntry> {
+  const response = await api.get<ContentEntry>(
+    `/content-types/${contentTypeId}/entries/${entryId}`,
+    {
+      headers: authHeaders(),
+    },
   );
+
   return response.data;
 }
 
@@ -112,11 +138,14 @@ export async function createEntry(
   contentTypeId: number,
   data: Record<string, unknown>,
 ): Promise<ContentEntry> {
-  const response = await axios.post<ContentEntry>(
-    `${API_BASE_URL}/content-types/${contentTypeId}/entries`,
+  const response = await api.post<ContentEntry>(
+    `/content-types/${contentTypeId}/entries`,
     { data },
-    { headers: authHeaders() },
+    {
+      headers: authHeaders(),
+    },
   );
+
   return response.data;
 }
 
@@ -125,17 +154,25 @@ export async function updateEntry(
   entryId: number,
   data: Record<string, unknown>,
 ): Promise<ContentEntry> {
-  const response = await axios.put<ContentEntry>(
-    `${API_BASE_URL}/content-types/${contentTypeId}/entries/${entryId}`,
+  const response = await api.put<ContentEntry>(
+    `/content-types/${contentTypeId}/entries/${entryId}`,
     { data },
-    { headers: authHeaders() },
+    {
+      headers: authHeaders(),
+    },
   );
+
   return response.data;
 }
 
-export async function deleteEntry(contentTypeId: number, entryId: number): Promise<void> {
-  await axios.delete(
-    `${API_BASE_URL}/content-types/${contentTypeId}/entries/${entryId}`,
-    { headers: authHeaders() },
+export async function deleteEntry(
+  contentTypeId: number,
+  entryId: number,
+): Promise<void> {
+  await api.delete(
+    `/content-types/${contentTypeId}/entries/${entryId}`,
+    {
+      headers: authHeaders(),
+    },
   );
 }

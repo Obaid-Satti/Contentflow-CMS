@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react';
-
 import axios from 'axios';
 
 import { AuthContext } from './AuthContext';
@@ -26,6 +25,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             delete axios.defaults.headers.common.Authorization;
         }
     }, [token]);
+
+    useEffect(() => {
+        const handleAuthLogout = () => {
+            logout();
+        };
+
+        window.addEventListener('auth:logout', handleAuthLogout);
+
+        return () => {
+            window.removeEventListener('auth:logout', handleAuthLogout);
+        };
+    }, []);
 
     return (
         <AuthContext.Provider

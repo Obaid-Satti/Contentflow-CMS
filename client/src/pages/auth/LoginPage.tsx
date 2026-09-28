@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
+import { fetchRegistrationStatus } from '@/services/auth.service';
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -25,7 +26,26 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isCheckingStatus, setIsCheckingStatus] = useState(true);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        const checkRegistrationStatus = async () => {
+            try {
+                const registrationAvailable = await fetchRegistrationStatus();
+                if (registrationAvailable) {
+                    navigate('/register', { replace: true });
+                    return;
+                }
+            } catch (err) {
+                console.error('Failed to check registration status:', err);
+            }
+
+            setIsCheckingStatus(false);
+        };
+
+        checkRegistrationStatus();
+    }, [navigate]);
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -59,6 +79,14 @@ export default function LoginPage() {
             setIsLoading(false);
         }
     };
+
+    if (isCheckingStatus) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-slate-950">
+                <Loader2 className="h-8 w-8 animate-spin text-indigo-400" aria-label="Checking registration status" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex">
