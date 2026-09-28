@@ -25,12 +25,26 @@ const swaggerOptions = {
                 description: 'Local Development Server',
             },
         ],
+        tags: [
+            { name: 'Authentication', description: 'Admin authentication and login' },
+            { name: 'Content Types', description: 'Content type schema management' },
+            { name: 'Content Entries', description: 'Content entry management' },
+            { name: 'Media', description: 'Media uploads and asset library' },
+            { name: 'API Tokens', description: 'API token generation and management' },
+            { name: 'Public Content', description: 'Public content delivery API for consuming published content' },
+        ],
         components: {
             securitySchemes: {
                 bearerAuth: {
                     type: 'http',
                     scheme: 'bearer',
                     bearerFormat: 'JWT',
+                    description: 'Admin JWT access token',
+                },
+                apiTokenAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    description: 'Public API token (starts with cf_)',
                 },
             },
         },
