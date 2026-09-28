@@ -16,6 +16,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 import ContentTypeModal from './ContentTypeModal.tsx';
 import FieldModal from './FieldModal.tsx';
@@ -285,58 +286,37 @@ export function ContentTypesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-12 w-12 items-center justify-center rounded-2xl text-indigo-600 shadow-sm"
-            style={{
-              background:
-                'linear-gradient(135deg, #eef2ff, #ede9fe)',
-              boxShadow:
-                'inset 0 0 0 1px rgba(99,102,241,0.2)',
-            }}
-          >
-            <Database className="h-6 w-6" />
-          </div>
+      <PageHeader
+        badge="Schema Architecture"
+        title="Content-Type Builder"
+        description="Define your data architecture, manage models and their schema fields."
+        icon={Database}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refetch}
+              disabled={isLoading}
+              className="flex items-center gap-2 border-slate-200 bg-white hover:bg-slate-50 shadow-xs"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
+              />
+              Refresh
+            </Button>
 
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Content-Type Builder
-            </h1>
-
-            <p className="text-sm text-slate-500">
-              Define your data architecture, manage models and
-              their schema fields.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refetch}
-            disabled={isLoading}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''
-                }`}
-            />
-            Refresh
-          </Button>
-
-          <Button
-            size="sm"
-            className="flex items-center gap-2 shadow-sm"
-            onClick={openCreateModal}
-          >
-            <Plus className="h-4 w-4" />
-            Create new content type
-          </Button>
-        </div>
-      </div>
+            <Button
+              size="sm"
+              className="flex items-center gap-2 shadow-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={openCreateModal}
+            >
+              <Plus className="h-4 w-4" />
+              Create new content type
+            </Button>
+          </>
+        }
+      />
 
       {/* Metrics strip */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

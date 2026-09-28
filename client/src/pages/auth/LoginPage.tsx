@@ -17,6 +17,7 @@ import {
 
 import { useAuth } from '@/context/useAuth';
 import { fetchRegistrationStatus } from '@/services/auth.service';
+import { ContentFlowLogo } from '@/components/ContentFlowLogo';
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -111,21 +112,7 @@ export default function LoginPage() {
                 <div className="relative z-10 max-w-sm w-full text-center">
                     {/* Logo mark */}
                     <div className="flex items-center justify-center mb-8">
-                        <div
-                            className="w-20 h-20 rounded-3xl flex items-center justify-center shadow-2xl"
-                            style={{
-                                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                                boxShadow: '0 12px 40px rgba(99,102,241,0.45)',
-                            }}
-                        >
-                            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                                <rect x="5" y="7" width="30" height="5" rx="2.5" fill="white" opacity="0.95" />
-                                <rect x="5" y="16" width="20" height="5" rx="2.5" fill="white" opacity="0.7" />
-                                <rect x="5" y="25" width="25" height="5" rx="2.5" fill="white" opacity="0.45" />
-                                <circle cx="33" cy="31" r="6" fill="#c4b5fd" stroke="white" strokeWidth="1.5" />
-                                <path d="M30.5 31l1.8 1.8 3.2-3.2" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                        </div>
+                        <ContentFlowLogo size={72} withShadow />
                     </div>
 
                     <h1 className="text-4xl font-extrabold text-white tracking-tight mb-1">ContentFlow</h1>
@@ -173,14 +160,7 @@ export default function LoginPage() {
 
                     {/* Mobile logo (hidden on lg) */}
                     <div className="flex items-center gap-2.5 mb-8 lg:hidden">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-                            <svg width="18" height="18" viewBox="0 0 40 40" fill="none">
-                                <rect x="5" y="7" width="30" height="5" rx="2.5" fill="white" />
-                                <rect x="5" y="16" width="20" height="5" rx="2.5" fill="white" opacity="0.7" />
-                                <rect x="5" y="25" width="25" height="5" rx="2.5" fill="white" opacity="0.45" />
-                            </svg>
-                        </div>
+                        <ContentFlowLogo size={36} withShadow />
                         <span className="font-bold text-white text-lg">ContentFlow</span>
                     </div>
 

@@ -17,6 +17,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/PageHeader';
 import {
   deleteMedia,
   fetchMedia,
@@ -230,18 +231,20 @@ export function MediaLibraryPage() {
   };
 
   return (
-    <section className="mx-auto max-w-7xl space-y-6">
+    <section className="space-y-6">
       {toast && <MediaToast toast={toast} onClose={() => setToast(null)} />}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Assets</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Media Library</h1>
-          <p className="mt-1 text-sm text-slate-500">Upload and manage images and documents used in your content.</p>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <Image className="h-4 w-4 text-indigo-500" aria-hidden="true" />
-          <span>{mediaQuery.data?.length ?? 0} {mediaQuery.data?.length === 1 ? 'file' : 'files'}</span>
+      <PageHeader
+        badge="Asset Storage"
+        title="Media Library"
+        description="Upload and manage images and documents used in your content."
+        icon={Image}
+        stats={
+          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+            {mediaQuery.data?.length ?? 0} {mediaQuery.data?.length === 1 ? 'file' : 'files'}
+          </span>
+        }
+        actions={
           <Button
             type="button"
             variant="outline"
@@ -249,11 +252,16 @@ export function MediaLibraryPage() {
             disabled={mediaQuery.isFetching}
             onClick={() => void mediaQuery.refetch()}
             aria-label="Refresh media files"
+            className="flex items-center gap-2 border-slate-200 bg-white hover:bg-slate-50 shadow-xs"
           >
-            <RefreshCw className={`h-4 w-4 ${mediaQuery.isFetching ? 'animate-spin' : ''}`} aria-hidden="true" />
+            <RefreshCw
+              className={`h-4 w-4 ${mediaQuery.isFetching ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+            <span>Refresh</span>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       <Card
         className={`border-2 border-dashed bg-white p-6 transition-colors sm:p-8 ${isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-slate-300'}`}
