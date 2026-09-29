@@ -20,7 +20,7 @@ A self-hosted, headless Content Management System built with **React**, **TypeSc
 |---|---|
 | Frontend | React 18, TypeScript, Vite, TanStack Query, React Router |
 | Backend | Node.js, Express, TypeScript |
-| Database | PostgreSQL 17 via Knex.js (query builder + migrations) |
+| Database | PostgreSQL 17 via Knex.js (Docker + PostgreSQL for local development, Neon PostgreSQL for deployment) |
 | Media Storage | Cloudinary (signed upload) |
 | Auth | JWT (admin sessions), hashed API tokens (public API) |
 | API Docs | Swagger UI (OpenAPI 3.0) |
