@@ -2,6 +2,8 @@
 
 A self-hosted, headless Content Management System built with **React**, **TypeScript**, **Express**, and **PostgreSQL**. ContentFlow lets you define dynamic content schemas, manage entries through an admin dashboard, store media via Cloudinary, and deliver content to any frontend through a secured public REST API.
 
+📺 **Live Demo & Video Walkthrough**: [Watch on Loom](https://www.loom.com/share/e2f8cb42258743d1974019c9434e7399)
+
 ## Features
 
 - **Content Type Builder** — Define custom schemas with typed fields. Changes are reflected instantly in the admin UI and public API.
@@ -135,7 +137,57 @@ cd ..
 
 ---
 
-### 6. Start the Application
+### 6. Seed the Database (Optional)
+
+ContentFlow includes a comprehensive seed script that populates the database with:
+- **1 Content Type** (`Article`) with typed fields
+- **3 Media Assets** uploaded to your Cloudinary storage
+- **30 Realistic Demo Entries** for testing search, pagination, and sorting
+
+> [!IMPORTANT]
+> Make sure `CLOUDINARY_URL` is set in your environment before running the seed script, as it uploads sample images to Cloudinary.
+
+#### Running Seed in Development
+
+With your local Docker PostgreSQL container running:
+
+```bash
+cd server
+npm run seed
+cd ..
+```
+
+#### Running Seed in Production
+
+Ensure your production environment variables (`NODE_ENV=production`, `DATABASE_URL` with SSL if required, and `CLOUDINARY_URL`) are provided:
+
+**Using the compiled build:**
+```bash
+cd server
+npm run build
+node dist/database/seed.js
+cd ..
+```
+
+**Using Linux / macOS Bash:**
+```bash
+cd server
+NODE_ENV=production DATABASE_URL="postgresql://<user>:<password>@<host>/<database>?sslmode=require" npm run seed
+cd ..
+```
+
+**Using Windows PowerShell:**
+```powershell
+cd server
+$env:NODE_ENV="production"
+$env:DATABASE_URL="postgresql://<user>:<password>@<host>/<database>?sslmode=require"
+npm run seed
+cd ..
+```
+
+---
+
+### 7. Start the Application
 
 Open **two terminals** and run each dev server:
 
