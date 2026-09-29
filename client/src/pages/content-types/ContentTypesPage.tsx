@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Database,
@@ -85,6 +85,12 @@ export function ContentTypesPage() {
   const [editingField, setEditingField] =
     useState<ContentTypeField | null>(null);
 
+  useEffect(() => {
+    const refreshTypes = () => void queryClient.invalidateQueries({ queryKey: ['content-types'] });
+    window.addEventListener('content-types-changed', refreshTypes);
+    return () => window.removeEventListener('content-types-changed', refreshTypes);
+  }, [queryClient]);
+
   const invalidateContentTypes = () => {
     void queryClient.invalidateQueries({ queryKey: ['content-types'] });
   };
@@ -95,7 +101,8 @@ export function ContentTypesPage() {
   };
 
   const openRenameModal = (contentType: ContentType) => {
-    setSelectedContentType(contentType);
+    const latest = contentTypes.find((item) => item.id === contentType.id) ?? contentType;
+    setSelectedContentType(latest);
     setIsModalOpen(true);
   };
 
@@ -105,7 +112,8 @@ export function ContentTypesPage() {
   };
 
   const openFieldModal = (contentType: ContentType) => {
-    setSelectedContentType(contentType);
+    const latest = contentTypes.find((item) => item.id === contentType.id) ?? contentType;
+    setSelectedContentType(latest);
     setEditingField(null);
     setIsFieldModalOpen(true);
   };
@@ -118,11 +126,18 @@ export function ContentTypesPage() {
   const confirmDeleteContentType = async () => {
     if (!contentTypeToDelete || !entryCountQuery.isSuccess || entryCountQuery.isFetching) return;
 
+    const deletedId = contentTypeToDelete.id;
     setIsDeleting(true);
     setDeleteError(null);
     try {
-      await deleteContentType(contentTypeToDelete.id);
+      await deleteContentType(deletedId);
+      queryClient.setQueryData<ContentType[]>(['content-types'], (current = []) =>
+        current.filter((item) => item.id !== deletedId),
+      );
       void queryClient.invalidateQueries({ queryKey: ['content-types'] });
+      if (selectedContentType?.id === deletedId) {
+        setSelectedContentType(null);
+      }
       setContentTypeToDelete(null);
     } catch (err: unknown) {
       const responseMessage =
@@ -141,7 +156,8 @@ export function ContentTypesPage() {
     contentType: ContentType,
     field: ContentTypeField,
   ) => {
-    setSelectedContentType(contentType);
+    const latest = contentTypes.find((item) => item.id === contentType.id) ?? contentType;
+    setSelectedContentType(latest);
     setEditingField(field);
     setIsFieldModalOpen(true);
   };
@@ -149,11 +165,12 @@ export function ContentTypesPage() {
   const saveField = async (field: ContentTypeField, migrationDefault?: unknown, confirmed = false, deleteDuplicatesConfirmed = false) => {
     if (!selectedContentType) return;
 
-    const fields = [...(selectedContentType.fields ?? [])];
+    const currentTarget = contentTypes.find((item) => item.id === selectedContentType.id) ?? selectedContentType;
+    const fields = [...(currentTarget.fields ?? [])];
     const duplicate = fields.some(
       (item) =>
         item.name.toLowerCase() === field.name.toLowerCase() &&
-        (!editingField || item.name !== editingField.name),
+        (!editingField || item.name.toLowerCase() !== editingField.name.toLowerCase()),
     );
     if (duplicate) {
       throw new Error('A field with this name already exists.');
@@ -161,7 +178,7 @@ export function ContentTypesPage() {
 
     if (editingField) {
       const fieldIndex = fields.findIndex(
-        (item) => item.name === editingField.name,
+        (item) => item.name.toLowerCase() === editingField.name.toLowerCase(),
       );
       if (fieldIndex === -1) {
         throw new Error('This field no longer exists. Refresh and try again.');
@@ -172,9 +189,9 @@ export function ContentTypesPage() {
     }
 
     const updated = await updateContentType(
-      selectedContentType.id,
-      selectedContentType.name,
-      selectedContentType.api_id,
+      currentTarget.id,
+      currentTarget.name,
+      currentTarget.api_id,
       fields,
       editingField && (editingField.name !== field.name || editingField.type !== field.type || editingField.unique !== field.unique)
         ? {
@@ -189,22 +206,28 @@ export function ContentTypesPage() {
         }
         : undefined,
     );
+    queryClient.setQueryData<ContentType[]>(['content-types'], (current = []) =>
+      current.map((item) => (item.id === updated.id ? updated : item)),
+    );
     void queryClient.invalidateQueries({ queryKey: ['content-types'] });
-    setSelectedContentType(updated);
     closeFieldModal();
   };
 
   const removeField = async () => {
     if (!selectedContentType || !editingField) return;
 
-    const fields = (selectedContentType.fields ?? []).filter(
-      (item) => item.name !== editingField.name,
+    const currentTarget = contentTypes.find((item) => item.id === selectedContentType.id) ?? selectedContentType;
+    const fields = (currentTarget.fields ?? []).filter(
+      (item) => item.name.toLowerCase() !== editingField.name.toLowerCase(),
     );
-    await updateContentType(
-      selectedContentType.id,
-      selectedContentType.name,
-      selectedContentType.api_id,
+    const updated = await updateContentType(
+      currentTarget.id,
+      currentTarget.name,
+      currentTarget.api_id,
       fields,
+    );
+    queryClient.setQueryData<ContentType[]>(['content-types'], (current = []) =>
+      current.map((item) => (item.id === updated.id ? updated : item)),
     );
     void queryClient.invalidateQueries({ queryKey: ['content-types'] });
     closeFieldModal();
@@ -213,6 +236,7 @@ export function ContentTypesPage() {
   const closeFieldModal = () => {
     setIsFieldModalOpen(false);
     setEditingField(null);
+    setSelectedContentType(null);
   };
 
 

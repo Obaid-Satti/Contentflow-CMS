@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ function ContentTypeModalForm({
     onClose,
     onSuccess,
 }: ContentTypeModalFormProps) {
+    const queryClient = useQueryClient();
     const isEditMode = Boolean(contentType);
 
     const [name, setName] = useState(() => contentType?.name ?? '');
@@ -97,20 +99,27 @@ function ContentTypeModalForm({
             setIsSaving(true);
 
             if (contentType) {
-                await updateContentType(
+                const updated = await updateContentType(
                     contentType.id,
                     name.trim(),
                     contentType.api_id,
                     contentType.fields ?? [],
                 );
+                queryClient.setQueryData<ContentType[]>(['content-types'], (current = []) =>
+                    current.map((item) => (item.id === updated.id ? updated : item)),
+                );
             } else {
-                await createContentType(
+                const created = await createContentType(
                     name.trim(),
                     apiId.trim(),
                     [],
                 );
+                queryClient.setQueryData<ContentType[]>(['content-types'], (current = []) =>
+                    [created, ...current],
+                );
             }
 
+            await queryClient.invalidateQueries({ queryKey: ['content-types'] });
             onSuccess();
             onClose();
         } catch (err: unknown) {
