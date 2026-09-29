@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Database,
   Plus,
@@ -34,12 +34,21 @@ import type {
 } from '@/types/content-type';
 
 export function ContentTypesPage() {
-  const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const queryClient = useQueryClient();
 
-  const [refreshKey, setRefreshKey] = useState<number>(0);
+  const {
+    data: contentTypes = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['content-types'],
+    queryFn: fetchContentTypes,
+    staleTime: 30_000,
+  });
+
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Content type modal state
   const [isModalOpen, setIsModalOpen] =
@@ -76,10 +85,8 @@ export function ContentTypesPage() {
   const [editingField, setEditingField] =
     useState<ContentTypeField | null>(null);
 
-  const refetch = () => {
-    setIsLoading(true);
-    setError(null);
-    setRefreshKey((prev) => prev + 1);
+  const invalidateContentTypes = () => {
+    void queryClient.invalidateQueries({ queryKey: ['content-types'] });
   };
 
   const openCreateModal = () => {
@@ -115,9 +122,7 @@ export function ContentTypesPage() {
     setDeleteError(null);
     try {
       await deleteContentType(contentTypeToDelete.id);
-      setContentTypes((current) =>
-        current.filter((item) => item.id !== contentTypeToDelete.id),
-      );
+      void queryClient.invalidateQueries({ queryKey: ['content-types'] });
       setContentTypeToDelete(null);
     } catch (err: unknown) {
       const responseMessage =
@@ -184,9 +189,7 @@ export function ContentTypesPage() {
         }
         : undefined,
     );
-    setContentTypes((current) =>
-      current.map((item) => (item.id === updated.id ? updated : item)),
-    );
+    void queryClient.invalidateQueries({ queryKey: ['content-types'] });
     setSelectedContentType(updated);
     closeFieldModal();
   };
@@ -197,15 +200,13 @@ export function ContentTypesPage() {
     const fields = (selectedContentType.fields ?? []).filter(
       (item) => item.name !== editingField.name,
     );
-    const updated = await updateContentType(
+    await updateContentType(
       selectedContentType.id,
       selectedContentType.name,
       selectedContentType.api_id,
       fields,
     );
-    setContentTypes((current) =>
-      current.map((item) => (item.id === updated.id ? updated : item)),
-    );
+    void queryClient.invalidateQueries({ queryKey: ['content-types'] });
     closeFieldModal();
   };
 
@@ -214,38 +215,6 @@ export function ContentTypesPage() {
     setEditingField(null);
   };
 
-  useEffect(() => {
-    let isCancelled = false;
-
-    fetchContentTypes()
-      .then((data) => {
-        if (!isCancelled) {
-          setContentTypes(data);
-          setError(null);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!isCancelled) {
-          console.error(
-            'Failed to load content types:',
-            err,
-          );
-
-          setError(
-            'Unable to load content types. Please check your connection and try again.',
-          );
-        }
-      })
-      .finally(() => {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [refreshKey]);
 
   const filteredContentTypes = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -296,7 +265,7 @@ export function ContentTypesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={refetch}
+              onClick={() => void refetch()}
               disabled={isLoading}
               className="flex items-center gap-2 border-slate-200 bg-white hover:bg-slate-50 shadow-xs"
             >
@@ -422,7 +391,7 @@ export function ContentTypesPage() {
             </Card>
           ))}
         </div>
-      ) : error ? (
+      ) : isError ? (
         <Card className="border-rose-200 bg-rose-50/50 p-6">
           <div className="flex items-start gap-4">
             <div className="rounded-full bg-rose-100 p-2 text-rose-600">
@@ -435,14 +404,16 @@ export function ContentTypesPage() {
               </h3>
 
               <p className="mt-1 text-sm text-rose-700">
-                {error}
+                {error instanceof Error
+                  ? error.message
+                  : 'Unable to load content types. Please check your connection and try again.'}
               </p>
 
               <div className="mt-4">
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={refetch}
+                  onClick={() => void refetch()}
                   className="border-rose-300 text-rose-800 hover:bg-rose-100"
                 >
                   Try again
@@ -690,7 +661,7 @@ export function ContentTypesPage() {
         isOpen={isModalOpen}
         contentType={selectedContentType}
         onClose={closeModal}
-        onSuccess={refetch}
+        onSuccess={invalidateContentTypes}
       />
 
       {contentTypeToDelete && (
